@@ -19,7 +19,7 @@
 # - add a filter
 #
 # The script will not build or promote the project environments.
-# Run sync_state.py --project <project> --environment <environment>
+# Run sync_stage.py --project <project> --environment <environment>
 # Start with the first environment and give the system enough time to perform the update.
 #
 # Releases:
@@ -27,7 +27,7 @@
 # 2020-07-08 M.Brookhuis - Version 2.
 #                        - changed logging
 #                        - moved api calls to smtools.py
-#
+# 2025-06-06 M.Brookhuis - change in description to use sync_stage
 #
 
 """

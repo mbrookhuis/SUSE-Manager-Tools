@@ -18,6 +18,7 @@
 # 2019-10-17 M.Brookhuis - Added support for projects and environments
 # 2020-03-23 M.Brookhuis - Added backup option
 # 2020-04-19 M.Brookhuis - all api calls moved to smtools.py and added debug logging
+# 2025-06-06 M.Brookhuis - added check if the sync of the previous environment is completed. 
 #
 
 """
@@ -74,6 +75,26 @@ def clone_channel(channel):
     total = smt.channel_software_mergepackages(clone_label, chan)
     smt.log_info('     Merging {} packages'.format(len(total)))
 
+def sync_available(previous_env, args):
+    """
+    check if the sync of the sync of the previous environment is completed (built) or done (unknown).
+    If status is building and wait is true,
+    """
+    while True:
+        project_details = smt.contentmanagement_listprojectenvironment(args.project)
+        for environment_details in project_details:
+            if environment_details.get('label') == previous_env:
+                if environment_details.get('status') == "built":
+                    return True
+                if environment_details.get('status') == "unknown":
+                    smt.log_error(f"environment {previous_env} has never been build. Please build first")
+                    return False
+                if (environment_details.get('status') == "building" or environment_details.get('status') == "generating_repodata") and args.wait:
+                    smt.log_info(f"environment {previous_env} still being build. Waiting")
+                    time.sleep(30)
+                else:
+                    smt.log_error(f"for environment {previous_env} building is still in progress and option wait is False.")
+                    return False
 
 def update_project(args):
     """
@@ -105,7 +126,11 @@ def update_project(args):
                 smt.contentmanagement_buildproject(args.project, build_message)
                 break
             else:
-                smt.contentmanagement_promoteproject(args.project, environment_details.get('previousEnvironmentLabel'))
+                if sync_available(environment_details.get('previousEnvironmentLabel'), args):
+                    smt.contentmanagement_promoteproject(args.project, environment_details.get('previousEnvironmentLabel'))
+                else:
+                    message = ('Unable to update channel because previous environment is not ready for environment {} for project {}.'.format(args.environment, args.project))
+                    smt.fatal_error(message)
                 break
         number_in_list += 1
     if not environment_present:
@@ -142,11 +167,13 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=RawTextHelpFormatter, description=('''\
          Usage:
          sync_channel.py
-    
+
                '''))
     parser.add_argument("-c", "--channel", help="name of the cloned parent channel to be updates")
     parser.add_argument("-b", "--backup", action="store_true", default=0, \
                         help="creates a backup of the stage first.")
+    parser.add_argument("-w", "--wait", action="store_true", default=0, \
+                        help="wait untill the sync of the previous environmnet is completed or present.")
     parser.add_argument("-p", "--project", help="name of the project to be updated. --environment is also mandatory")
     parser.add_argument("-e", "--environment", help="the project to be updated. Mandatory with --project")
     parser.add_argument("-m", "--message", help="Message to be displayed when build is updated")

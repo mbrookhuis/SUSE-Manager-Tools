@@ -24,7 +24,7 @@
 """
 This library contains functions used in other modules
 """
-
+import ssl
 from email.mime.text import MIMEText
 import xmlrpc.client
 import logging
@@ -223,17 +223,56 @@ class SMTools:
         """
         Log in to SUSE Manager Server.
         """
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            sock.connect_ex((CONFIGSM['suman']['server'], 443))
-        except:
-            self.fatal_error("Unable to login to SUSE Manager server {}".format(CONFIGSM['suman']['server']))
+        if CONFIGSM['suman']['ssl_certificate_check']:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                sock.connect_ex((CONFIGSM['suman']['server'], 443))
+            except:
+                self.fatal_error("Unable to login to SUSE Manager server {} SOCKET".format(CONFIGSM['suman']['server']))
 
-        self.client = xmlrpc.client.Server("https://" + CONFIGSM['suman']['server'] + "/rpc/api")
-        try:
-            self.session = self.client.auth.login(CONFIGSM['suman']['user'], CONFIGSM['suman']['password'])
-        except xmlrpc.client.Fault:
-            self.fatal_error("Unable to login to SUSE Manager server {}".format(CONFIGSM['suman']['server']))
+            self.client = xmlrpc.client.Server("https://" + CONFIGSM['suman']['server'] + "/rpc/api")
+            try:
+                self.session = self.client.auth.login(CONFIGSM['suman']['user'], CONFIGSM['password'])
+            except:
+                self.fatal_error("Unable to login to SUSE Manager server {} XMLRPC".format(CONFIGSM['suman']['server']))
+        else:
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                sock.connect_ex((CONFIGSM['suman']['server'], 443))
+            except:
+                self.fatal_error("Unable to login to SUSE Manager server {} SOCKET".format(CONFIGSM['suman']['server']))
+            context_xmlrpc = ssl.create_default_context()
+            context_xmlrpc.check_hostname = False
+            context_xmlrpc.verify_mode = ssl.CERT_NONE
+            transport = xmlrpc.client.Transport()
+            transport._ssl_wrap = lambda host, **kwargs: context_xmlrpc.wrap_socket(socket.create_connection((host, 443)), server_hostname=host)
+            self.client = xmlrpc.client.Server("https://" + CONFIGSM['suman']['server'] + "/rpc/api", transport=transport)
+            try:
+                self.session = self.client.auth.login(CONFIGSM['suman']['user'], CONFIGSM['suman']['password'])
+            except:
+                self.fatal_error("Unable to login to SUSE Manager server {} XMLRPC".format(CONFIGSM['suman']['server']))
+
+    '''
+        def suman_login(self):
+            """
+            Log in to SUSE Manager Server.
+            """
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                sock.connect_ex((CONFIGSM['suman']['server'], 443))
+            except:
+                self.fatal_error("Unable to login to SUSE Manager server {}".format(CONFIGSM['suman']['server']))
+    
+            self.client = xmlrpc.client.Server("https://" + CONFIGSM['suman']['server'] + "/rpc/api")
+            try:
+                self.session = self.client.auth.login(CONFIGSM['suman']['user'], CONFIGSM['suman']['password'])
+            except xmlrpc.client.Fault:
+                self.fatal_error("Unable to login to SUSE Manager server {}".format(CONFIGSM['suman']['server']))
+    '''
 
     def suman_logout(self):
         """
@@ -413,8 +452,6 @@ class SMTools:
             self.log_debug('  systemid:    {}'.format(self.systemid))
             self.log_debug("Error: \n{}".format(err))
             self.fatal_error(("Unable to receive list of installed packages. Error: \n{}".format(err)))
-
-
 
     def system_listmigrationtargets(self):
         try:
@@ -700,6 +737,49 @@ class SMTools:
                                                                                                            result_message)
             self.error_handling('spmig', message)
             return False
+
+    def system_config_set_channels(self, channels, fatal=True):
+        """
+        Setting the assiged configuration channels
+
+        :param channels: the channels to be assigned in the right order
+        :param fatal: whether to fatal error
+        :return:
+        """
+        try:
+            return self.client.system.config.setChannels(self.session, [self.systemid], channels)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: system.config.setChannels')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  system_id:  {self.systemid}')
+            self.log_debug(f'  channels:   {channels}')
+            self.log_debug(f"Error: \n{err}")
+            if fatal:
+                self.fatal_error(f'Unable set configuration channels for server {self.hostname}.')
+            else:
+                self.log_error(f'Unable set configuration channels for server {self.hostname}. Please check logs')
+
+    def system_set_group_membership(self, sgid, fatal=True):
+        """
+        Assign system to systemgroup
+
+        :param sgid: the group ID
+        :param fatal: whether to fatal error
+        :return:
+        """
+        try:
+            return self.client.system.setGroupMembership(self.session, self.systemid, int(sgid), True)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: system.setGroupMemebership')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  system_id:  {self.systemid}')
+            self.log_debug(f'  group_id:   {sgid}')
+            if fatal:
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(f'Unable to assign group membership for server {self.hostname}.')
+            else:
+                self.log_error(f'Unable to assign group membership for server {self.hostname}. Please check logs')
+
 
     """
     API call related to channel.software
@@ -1082,6 +1162,27 @@ class SMTools:
             self.log_debug("Error: \n{}".format(err))
             message = ('Unable to get list of systems assgined to system group {}'.format(group))
             self.log_error(message)
+
+    def systemgroup_get_details(self, group, fatal=True):
+        """
+        get the detail of the given systemgroup
+        :param group:
+        :return:
+        """
+        try:
+            return self.client.systemgroup.getDetails(self.session, group)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: systemgroup.getDetails')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  Group:          {group}')
+            self.log_debug(f"Error: \n{err}")
+            message = (f'Unable to get details of system group {group}')
+            if fatal:
+                self.fatal_error(message)
+            else:
+                self.log_error(message)
+                return 0
+
 
     """
     API call related to kickstart.keys

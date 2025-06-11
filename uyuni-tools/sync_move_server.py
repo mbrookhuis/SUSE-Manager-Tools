@@ -184,16 +184,24 @@ def sync_systemgroups(smlm_old, exitonerror):
     """
     smt.log_info("start setting systemgroup membership")
     assigned_groups = smlm_old.system_list_groups()
-    smt.log_debug(assigned_groups)
+    available_groups = smt.systemgroup_list_all_groups()
+    # smt.log_debug(assigned_groups)
     for group in assigned_groups:
         if group.get('subscribed') == 1:
             smt.log_info(f"Group {group.get('system_group_name')}")
-            available_groups = smt.systemgroup_get_details(group.get('system_group_name'), exitonerror)
-            for available_group in available_groups:
-                if available_group.get('id') == 0:
-                    smt.log_error(f"Group {available_group.get('system_group_name')} not set")
+            smt.log_debug(available_groups)
+            not_found = True
+            for new_group in available_groups:
+                smt.log_debug(new_group)
+                if group.get('system_group_name') == new_group.get('name'):
+                    not_found = False
+                    smt.system_set_group_membership(new_group.get('id'), exitonerror)
+                    break
+            if not_found:
+                if exitonerror:
+                    smt.fatal_error(f"Group {group.get('system_group_name')} not set. Exiting!!!!!")
                 else:
-                    smt.system_set_group_membership(available_group.get('id'), exitonerror)
+                    smt.log_error(f"Group {group.get('system_group_name')} not set")
     smt.log_info("finished setting systemgroup membership")
     return
 
@@ -240,7 +248,7 @@ def start_sync(args, user, password):
     """
     smt.suman_login()
     smt.set_hostname(args.server)
-    smlm_old = smlm(__smt, args.server, args.fromsmlm, user, password, args.skipsslcheck)
+    smlm_old = smlm(args.server, args.fromsmlm, user, password, args.skipsslcheck)
     if args.all:
         sync_configchannels(smlm_old, args.exitonerror)
         sync_systemgroups(smlm_old, args.exitonerror)

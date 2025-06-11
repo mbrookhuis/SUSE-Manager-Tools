@@ -1183,6 +1183,13 @@ class SMTools:
                 self.log_error(message)
                 return 0
 
+    def systemgroup_list_all_groups(self):
+        try:
+            return self.client.systemgroup.listAllGroups(self.session)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: systemgroups.listAllGroups')
+            self.log_debug("Error: \n{}".format(err))
+            self.fatal_error('Unable to get list of systemgroups')
 
     """
     API call related to kickstart.keys

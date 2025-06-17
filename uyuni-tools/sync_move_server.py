@@ -27,20 +27,18 @@ This program will sync the give stage
 
 import argparse
 import base64
-import binascii
 import datetime
 import socket
 import ssl
 import sys
-import time
 import xmlrpc.client
+from argparse import RawTextHelpFormatter
 
 import smtools
-from argparse import RawTextHelpFormatter
 
 __smt = None
 
-class smlm:
+class SMLM:
     client = ""
     session = ""
     server = ""
@@ -153,13 +151,32 @@ class smlm:
             smt.log_debug("Error: \n{}".format(err))
             smt.fatal_error('Unable to get list of systemgroups for server {}.'.format(self.server))
 
+    def system_getsubscribedbasechannel(self):
+        try:
+            return self.client.system.getSubscribedBaseChannel(self.session, self.systemid)
+        except xmlrpc.client.Fault as err:
+            smt.log_debug('api-call: system.getSubscribedBaseChannel')
+            smt.log_debug('Value passed: ')
+            smt.log_debug('  system_id:  {}'.format(self.systemid))
+            smt.log_debug("Error: \n{}".format(err))
+            smt.fatal_error('Unable to get subscribed basechannel for server {}.'.format(self.server))
+
+    def system_listsubscribedchildchannels(self):
+        try:
+            return self.client.system.listSubscribedChildChannels(self.session, self.systemid)
+        except xmlrpc.client.Fault as err:
+            smt.log_debug('api-call: system.listSubscribedChildChannels')
+            smt.log_debug('Value passed: ')
+            smt.log_debug('  system_id:  {}'.format(self.systemid))
+            smt.log_debug("Error: \n{}".format(err))
+            smt.fatal_error('Unable to get subscribed child channels for server {}.'.format(self.server))
+
 # ==========================================================
 
 def sync_configchannels(smlm_old, exitonerror):
     """
     Synchronize configchannels
 
-    :param server: Server from which the data needs to be synchronized
     :param smlm_old: Connection information to the previous SMLM
     :param exitonerror: If an item is not present, exit with error when set to True
     :return:
@@ -168,8 +185,8 @@ def sync_configchannels(smlm_old, exitonerror):
     assigned_configchannels = smlm_old.system_config_listchannels()
     config_channels = []
     for channels in assigned_configchannels:
-        config_channels.append(channels.get('name'), exitonerror)
-    smt.system_config_set_channels(config_channels)
+        config_channels.append(channels.get('name'))
+    smt.system_config_set_channels(config_channels, exitonerror)
     smt.log_info("finished setting configuration channels")
     return
 
@@ -177,7 +194,6 @@ def sync_systemgroups(smlm_old, exitonerror):
     """
     Synchronize systemgroups
 
-    :param server: Server from which the data needs to be synchronized
     :param smlm_old: Connection information to the previous SMLM
     :param exitonerror: If an item is not present, exit with error when set to True
     :return:
@@ -185,14 +201,11 @@ def sync_systemgroups(smlm_old, exitonerror):
     smt.log_info("start setting systemgroup membership")
     assigned_groups = smlm_old.system_list_groups()
     available_groups = smt.systemgroup_list_all_groups()
-    # smt.log_debug(assigned_groups)
     for group in assigned_groups:
         if group.get('subscribed') == 1:
             smt.log_info(f"Group {group.get('system_group_name')}")
-            smt.log_debug(available_groups)
             not_found = True
             for new_group in available_groups:
-                smt.log_debug(new_group)
                 if group.get('system_group_name') == new_group.get('name'):
                     not_found = False
                     smt.system_set_group_membership(new_group.get('id'), exitonerror)
@@ -214,7 +227,27 @@ def sync_repos(server, smlm_old, exitonerror):
     :param exitonerror: If an item is not present, exit with error when set to True
     :return:
     """
+    smt.log_info("start setting repositories")
+    base_channel = smlm_old.system_getsubscribedbasechannel().get('label')
+    child_channels = []
+    for child_channel in smlm_old.system_listsubscribedchildchannels():
+        child_channels.append(child_channel.get('label'))
+    smt.system_schedulechangechannels(base_channel, child_channels, datetime.datetime.now())
+    smt.log_info("finished setting repositories")
     return
+
+def get_child_channels(smlm_old):
+    """
+    Return a list of assigned child channels
+
+    :param smlm_old: class to access previous SMLM
+    :param base_channel: base channels assigned to system
+    :return:
+    """
+    child_channels = []
+    for child_channel in smlm_old.system_listsubscribedchildchannels():
+        child_channels.append(child_channel.get('label'))
+    return child_channels
 
 def sync_custominfo(server, smlm_old, exitonerror):
     """
@@ -248,7 +281,7 @@ def start_sync(args, user, password):
     """
     smt.suman_login()
     smt.set_hostname(args.server)
-    smlm_old = smlm(args.server, args.fromsmlm, user, password, args.skipsslcheck)
+    smlm_old = SMLM(args.server, args.fromsmlm, user, password, args.skipsslcheck)
     if args.all:
         sync_configchannels(smlm_old, args.exitonerror)
         sync_systemgroups(smlm_old, args.exitonerror)

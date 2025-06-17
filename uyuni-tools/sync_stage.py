@@ -75,7 +75,7 @@ def clone_channel(channel):
     total = smt.channel_software_mergepackages(clone_label, chan)
     smt.log_info('     Merging {} packages'.format(len(total)))
 
-def sync_available(previous_env, args):
+def sync_completed(env, args):
     """
     check if the sync of the sync of the previous environment is completed (built) or done (unknown).
     If status is building and wait is true,
@@ -83,17 +83,17 @@ def sync_available(previous_env, args):
     while True:
         project_details = smt.contentmanagement_listprojectenvironment(args.project)
         for environment_details in project_details:
-            if environment_details.get('label') == previous_env:
+            if environment_details.get('label') == env:
                 if environment_details.get('status') == "built":
                     return True
                 if environment_details.get('status') == "unknown":
-                    smt.log_error(f"environment {previous_env} has never been build. Please build first")
+                    smt.log_error(f"environment {env} has never been build. Please build first")
                     return False
                 if (environment_details.get('status') == "building" or environment_details.get('status') == "generating_repodata") and args.wait:
-                    smt.log_info(f"environment {previous_env} still being build. Waiting")
+                    smt.log_info(f"environment {env} still being build. Waiting")
                     time.sleep(30)
                 else:
-                    smt.log_error(f"for environment {previous_env} building is still in progress and option wait is False.")
+                    smt.log_error(f"for environment {env} building is still in progress and option wait is False.")
                     return False
 
 def update_project(args):
@@ -124,10 +124,14 @@ def update_project(args):
                 build_message = "Created on {}".format(dat)
             if number_in_list == 1:
                 smt.contentmanagement_buildproject(args.project, build_message)
+                if args.wait:
+                    sync_completed(args.environment, args)
                 break
             else:
-                if sync_available(environment_details.get('previousEnvironmentLabel'), args):
+                if sync_completed(environment_details.get('previousEnvironmentLabel'), args):
                     smt.contentmanagement_promoteproject(args.project, environment_details.get('previousEnvironmentLabel'))
+                    if args.wait:
+                        sync_completed(args.environment, args)
                 else:
                     message = ('Unable to update channel because previous environment is not ready for environment {} for project {}.'.format(args.environment, args.project))
                     smt.fatal_error(message)

@@ -1247,4 +1247,39 @@ class SMTools:
             message = 'Unable to get events in failed for id {}. The error is: \n{}'.format(action_id, err)
             self.fatal_error(message)
 
+    """
+    API call related to image
+    """
+    def image_profile_create(self, image_profile_name, image_profile_type, software_channel_store_label,
+                             profile_path_arg, activation_key, final_kiwi_options_param):
+        try:
+            return self.client.image.profile.create(self.session, image_profile_name, image_profile_type,
+                                                    software_channel_store_label, profile_path_arg, activation_key,
+                                                    final_kiwi_options_param)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: schedule.listCompletedSystems')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  Label:          {image_profile_name}')
+            self.log_debug(f'  Type:           {image_profile_type}')
+            self.log_debug(f'  Store-label:    {software_channel_store_label}')
+            self.log_debug(f'  Kiwi-path:      {profile_path_arg}')
+            self.log_debug(f'  Activation-key: {activation_key}')
+            self.log_debug(f'  Kiwi-options:   {final_kiwi_options_param}')
+            self.log_debug(f"Error: \n{err}")
+            message = f'Unable to create image profile {image_profile_name}. The error is: \n{err}'
+            self.fatal_error(message)
+
+    def image_schedule_image_build(self, profile_label, version, build_host_id, date):
+        try:
+            return self.client.image.profile.create(self.session, profile_label, version, build_host_id, date)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: schedule.listCompletedSystems')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  Label:          {profile_label}')
+            self.log_debug(f'  Version:        {version}')
+            self.log_debug(f'  Build-host-id:  {build_host_id}')
+            self.log_debug(f'  data:           {date}')
+            self.log_debug(f"Error: \n{err}")
+            message = f'Unable to schedule image build {image_profile_name}. The error is: \n{err}'
+            self.fatal_error(message)
 

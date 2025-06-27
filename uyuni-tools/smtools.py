@@ -232,7 +232,7 @@ class SMTools:
 
             self.client = xmlrpc.client.Server("https://" + CONFIGSM['suman']['server'] + "/rpc/api")
             try:
-                self.session = self.client.auth.login(CONFIGSM['suman']['user'], CONFIGSM['password'])
+                self.session = self.client.auth.login(CONFIGSM['suman']['user'], CONFIGSM['suman']['password'])
             except:
                 self.fatal_error("Unable to login to SUSE Manager server {} XMLRPC".format(CONFIGSM['suman']['server']))
         else:

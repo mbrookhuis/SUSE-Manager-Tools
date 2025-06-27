@@ -1280,6 +1280,6 @@ class SMTools:
             self.log_debug(f'  Build-host-id:  {build_host_id}')
             self.log_debug(f'  data:           {date}')
             self.log_debug(f"Error: \n{err}")
-            message = f'Unable to schedule image build {image_profile_name}. The error is: \n{err}'
+            message = f'Unable to schedule image build {profile_label}. The error is: \n{err}'
             self.fatal_error(message)
 

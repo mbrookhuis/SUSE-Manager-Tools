@@ -1257,7 +1257,7 @@ class SMTools:
                                                     software_channel_store_label, profile_path_arg, activation_key,
                                                     final_kiwi_options_param)
         except xmlrpc.client.Fault as err:
-            self.log_debug('api-call: schedule.listCompletedSystems')
+            self.log_debug('api-call: image.profile.create')
             self.log_debug('Value passed: ')
             self.log_debug(f'  Label:          {image_profile_name}')
             self.log_debug(f'  Type:           {image_profile_type}')
@@ -1271,9 +1271,9 @@ class SMTools:
 
     def image_schedule_image_build(self, profile_label, version, build_host_id, date):
         try:
-            return self.client.image.profile.create(self.session, profile_label, version, build_host_id, date)
+            return self.client.image.scheduleImageBuild(self.session, profile_label, version, build_host_id, date)
         except xmlrpc.client.Fault as err:
-            self.log_debug('api-call: schedule.listCompletedSystems')
+            self.log_debug('api-call: image.scheduleImageBuild')
             self.log_debug('Value passed: ')
             self.log_debug(f'  Label:          {profile_label}')
             self.log_debug(f'  Version:        {version}')

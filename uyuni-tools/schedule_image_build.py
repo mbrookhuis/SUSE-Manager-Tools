@@ -76,7 +76,7 @@ def main():
     smt.log_info(f"  Image Version: {args.image_version}")
     smt.log_info(f"  Build Host ID: {resolved_build_host_id}")
 
-    schedule_image_build(args.profile_labe, args.image_version, resolved_build_host_id, EARLIEST_OCCURRENCE)
+    schedule_image_build(args.profile_label, args.image_version, resolved_build_host_id, EARLIEST_OCCURRENCE)
     smt.close_program()
 
 if __name__ == "__main__":

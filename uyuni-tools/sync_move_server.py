@@ -231,7 +231,16 @@ def sync_repos(server, smlm_old, exitonerror):
     base_channel = smlm_old.system_getsubscribedbasechannel().get('label')
     child_channels = []
     for child_channel in smlm_old.system_listsubscribedchildchannels():
-        child_channels.append(child_channel.get('label'))
+        no_skip = True
+        channel = child_channel.get('label')
+        for skip_channel in smtools.CONFIGSM['migrate']['skip_channels']:
+            if skip_channel in channel and no_skip:
+                no_skip = False
+        for rename_from, rename_to in smtools.CONFIGSM['migrate']['rename_channels'].items():
+            if rename_from in channel and no_skip:
+                channel = channel.replace(rename_from, rename_to)
+        if no_skip:
+            child_channels.append(channel)
     smt.system_schedulechangechannels(base_channel, child_channels, datetime.datetime.now())
     smt.log_info("finished setting repositories")
     return

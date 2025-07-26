@@ -27,6 +27,12 @@ loglevel:
    file: DEBUG
    screen: INFO
 
+migrate:
+   skip_channels:
+      - <part of or complete channel name>
+   rename_channels:
+      <part or channelname to change>: <change with part or channelname>
+
 error_handling:
   # fatal: report error, exit script
   # error: report error, continue

@@ -228,29 +228,45 @@ def sync_repos(server, smlm_old, exitonerror):
     :return:
     """
     smt.log_info("start setting repositories")
-    base_channel = smlm_old.system_getsubscribedbasechannel().get('label')
+    base_channel = channel_name(smlm_old.system_getsubscribedbasechannel().get('label'))
     child_channels = []
     for child_channel in smlm_old.system_listsubscribedchildchannels():
-        no_skip = True
-        channel = child_channel.get('label')
-        for skip_channel in smtools.CONFIGSM['migrate']['skip_channels']:
-            if skip_channel in channel and no_skip:
-                no_skip = False
-        for rename_from, rename_to in smtools.CONFIGSM['migrate']['rename_channels'].items():
-            if rename_from in channel and no_skip:
-                channel = channel.replace(rename_from, rename_to)
-        if no_skip:
-            child_channels.append(channel)
+        new_child_channel = channel_name(child_channel.get('label'))
+        if new_child_channel:
+            child_channels.append(new_child_channel)
+        else:
+            smt.log_warning(f"skipping {child_channel.get('label')}")
     smt.system_schedulechangechannels(base_channel, child_channels, datetime.datetime.now())
     smt.log_info("finished setting repositories")
     return
+
+def channel_name(channel):
+    """
+    Find the new channel name
+    :param channel:
+    :return: new channel name or nil when isn't needed/present
+    """
+    for skip_channel in smtools.CONFIGSM['migrate']['skip_channels']:
+        if skip_channel in channel:
+            return None
+    for rename_from, rename_to in smtools.CONFIGSM['migrate']['rename_channels'].items():
+        if rename_from in channel:
+            channel = channel.replace(rename_from, rename_to)
+    for label, new_label in smtools.CONFIGSM['migrate']['project_labels'].items():
+        label_elements = label.split('*')
+        if all([x in channel for x in label_elements]) and channel.startswith(label_elements[0]):
+            channel = channel.replace(label_elements[0], new_label, 1)
+            break
+    all_channels = smt.get_labels_all_channels()
+    if channel in all_channels:
+        return channel
+    return None
 
 def get_child_channels(smlm_old):
     """
     Return a list of assigned child channels
 
     :param smlm_old: class to access previous SMLM
-    :param base_channel: base channels assigned to system
     :return:
     """
     child_channels = []

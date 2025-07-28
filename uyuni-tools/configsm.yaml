@@ -32,6 +32,9 @@ migrate:
       - <part of or complete channel name>
    rename_channels:
       <part or channelname to change>: <change with part or channelname>
+   project_labels:
+      test*sp6: s156-test
+      prod*sp6: s156-prod
 
 error_handling:
   # fatal: report error, exit script

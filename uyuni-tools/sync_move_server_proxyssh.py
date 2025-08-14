@@ -9,9 +9,11 @@
 # Created by: SUSE Michael Brookhuis
 #
 # This script will sync information after a system is moved to a new MLM Server
+# This is a special version to migrate server behind a proxy and using SSH tunnel as connection method.
 #
 # Releases:
 # 2025-07-30 M.Brookhuis - initial release.
+#
 #
 
 """
@@ -21,6 +23,7 @@ This program will sync the give stage
 import argparse
 import base64
 import datetime
+import time
 import socket
 import ssl
 import sys
@@ -164,6 +167,92 @@ class SMLM:
             smt.log_debug("Error: \n{}".format(err))
             smt.fatal_error('Unable to get subscribed child channels for server {}.'.format(self.server))
 
+    def system_scheduleapplystates(self, states, date, test=False):
+        smt.log_info("Performing system.scheduleApplyStates")
+        try:
+            schedule_id = self.client.system.scheduleApplyStates(self.session, self.systemid, states, date, test)
+        except xmlrpc.client.Fault as err:
+            smt.log_debug('api-call: system.scheduleApplyStates')
+            smt.log_debug('Value passed: ')
+            smt.log_debug('  system_id:      {}'.format(self.systemid))
+            smt.log_debug('  states:         {}'.format(states))
+            smt.log_debug('  Time:           {}'.format(date))
+            smt.log_debug('  Test-mode:      {}'.format(test))
+            smt.log_debug("Error: \n{}".format(err))
+            smt.fatal_error(("Error to deploy configuration. Error: \n{}".format(err)))
+        (result_failed, result_completed, result_message) = self.check_progress(schedule_id, 1000, "Apply States")
+        if result_completed == 1:
+            smt.log_info("Apply states completed successful.")
+            return True
+        else:
+            smt.log_error("Apply States failed!!!!! Server {} will not be updated!\n\n"
+                          "The error messages is:\n{}".format(smt.hostname, result_message))
+            return False
+
+    def check_progress(self, action_id, timeout, action):
+        """
+        Check progress of action
+        """
+        end_time = datetime.datetime.now() + datetime.timedelta(0, timeout)
+        wait_time = 30
+        time.sleep(wait_time)
+        in_progress = self.schedule_listinprogresssystems(action_id)
+        while in_progress:
+            smt.log_info("Still Running")
+            if datetime.datetime.now() > end_time:
+                message = "Action '{}' run in timeout. Please check server {}.".format(action, self.hostname)
+                smt.log_error(('timeout_passed', message))
+                return 1, 0, message
+            time.sleep(wait_time)
+            in_progress = self.schedule_listinprogresssystems(action_id)
+        completed = self.schedule_listcompletedsystems(action_id)
+        if completed:
+            return 0, 1, completed[0].get("message")
+        else:
+            return 1, 0, self.schedule_listfailedsystems(action_id)[0].get("message")
+
+    def schedule_listinprogresssystems(self, action_id):
+        tries = 1
+        while tries < 4:
+            try:
+                return self.client.schedule.listInProgressSystems(self.session, action_id)
+            except Exception as err:
+                smt.log_debug('api-call: schedule.listInProgressSystems')
+                smt.log_debug('Value passed: ')
+                smt.log_debug('  Event ID: {}'.format(action_id))
+                smt.log_debug("Error: \n{}".format(err))
+                message = 'There has been an problem to get the event status, retry in 10 seconds. The error is: \n{}'.format(
+                    err)
+                smt.log_warning(message)
+                tries += 1
+                time.sleep(10)
+        smt.fatal_error("unable to get status of event. Tried 3 times. Aborting.")
+        return None
+
+    def schedule_listcompletedsystems(self, action_id):
+        try:
+            return self.client.schedule.listCompletedSystems(self.session, action_id)
+        except xmlrpc.client.Fault as err:
+            smt.log_debug('api-call: schedule.listCompletedSystems')
+            smt.log_debug('Value passed: ')
+            smt.log_debug('  Event ID: {}'.format(action_id))
+            smt.log_debug("Error: \n{}".format(err))
+            message = 'Unable to get events in completes for id {}. The error is: \n{}'.format(action_id, err)
+            smt.fatal_error(message)
+        return None
+
+    def schedule_listfailedsystems(self, action_id):
+        try:
+            return self.client.schedule.listFailedSystems(self.session, action_id)
+        except xmlrpc.client.Fault as err:
+            smt.log_debug('api-call: schedule.listCompletedSystems')
+            smt.log_debug('Value passed: ')
+            smt.log_debug('  Event ID: {}'.format(action_id))
+            smt.log_debug("Error: \n{}".format(err))
+            message = 'Unable to get events in failed for id {}. The error is: \n{}'.format(action_id, err)
+            smt.fatal_error(message)
+        return None
+
 # ==========================================================
 
 def sync_configchannels(smlm_old, exitonerror):
@@ -303,6 +392,13 @@ def start_sync(args, user, password):
     smt.suman_login()
     smt.set_hostname(args.server)
     smlm_old = SMLM(args.server, args.fromsmlm, user, password, args.skipsslcheck)
+
+    if args.sshtunnel:
+        if not args.proxy:
+            smt.log_error("Option --sshtunnel requires --proxy to be given")
+        else:
+            do_proxy_actions(smlm_old, args.exitonerror)
+
     if args.all:
         sync_configchannels(smlm_old, args.exitonerror)
         sync_systemgroups(smlm_old, args.exitonerror)
@@ -357,6 +453,28 @@ def check_arguments(args):
             sys.exit(1)
     return None, None
 
+def do_proxy_actions(smlm_old, exitonerror):
+    """
+
+    :param args:
+    :param user:
+    :param password:
+    :return:
+    """
+    smlm_old.system_scheduleapplystates(["mig_enable_root_ssh"], datetime.datetime.now())
+
+    assigned_groups = smlm_old.system_list_groups()
+
+
+
+    # find activation-key
+    # register server
+    # execute state to do disable root
+
+
+
+
+
 def main():
     """
     Main section
@@ -393,6 +511,9 @@ def main():
                         help="When set, exit when a item is missing on the new server. Otherwise only report.")
     parser.add_argument("-k", "--skipsslcheck", action="store_true", default=0,
                         help="When set, exit when a item is missing on the new server. Otherwise only report.")
+    parser.add_argument("--sshtunnel", action="store_true", default=0,
+                        help="When set, prepare server to register using proxy and ssh tunnel.")
+    parser.add_argument("-x", "--proxy", help="proxy server to be used")
     parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, June 7, 2025')
     args = parser.parse_args()
     smt.log_info("Start")

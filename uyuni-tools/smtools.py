@@ -1303,7 +1303,7 @@ class SMTools:
                 self.fatal_error(message)
             else:
                 self.log_error(message)
-                return 0
+                return None
 
     def systemgroup_list_all_groups(self):
         try:
@@ -1312,6 +1312,27 @@ class SMTools:
             self.log_debug('api-call: systemgroups.listAllGroups')
             self.log_debug("Error: \n{}".format(err))
             self.fatal_error('Unable to get list of systemgroups')
+
+    def systemgroup_add_or_remove_systems(self, group, systems, add=True):
+        try:
+            return self.client.systemgroup.addOrRemoveSystems(self.session, group, systems, add)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: systemgroups.addOrRemoveSystems')
+            self.log_debug(f'  Group:      {group}')
+            self.log_debug(f'  SystemIds:  {systems}')
+            self.log_debug(f'  Add:        {add}')
+            self.log_debug("Error: \n{}".format(err))
+            self.fatal_error('Unable to add or remove systems to systemgroup')
+
+    def systemgroup_create(self, group, description):
+        try:
+            return self.client.systemgroup.create(self.session, group, description)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: systemgroups.create')
+            self.log_debug(f'  Group:        {group}')
+            self.log_debug(f'  Description:  {description}')
+            self.log_debug("Error: \n{}".format(err))
+            self.fatal_error('Unable create systemgroup')
 
     """
     API call related to kickstart

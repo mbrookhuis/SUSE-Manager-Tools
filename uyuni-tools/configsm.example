@@ -63,3 +63,13 @@ maintenance:
    exception_sp:
       sles12-sp4:
          - lx0003
+
+bootstrap-repo:
+   command: "podman exec -ti uyuni-server mgr-create-bootstrap-repo"
+   repos:
+     SL-MICRO-6.0-x86_64: sm60-dev-sl-micro-6.0-pool-x86_64
+     SL-MICRO-6.1-x86_64: sm61-dev-sl-micro-6.1-pool-x86_64
+     SLE-15-SP6-x86_64: s156-dev-sle-product-sles15-sp6-pool-x86_64
+     SLE-15-SP7-x86_64: s157-dev-sle-product-sles15-sp7-pool-x86_64
+     SLE-MICRO-5.5-x86_64: sm55-dev-sle-micro-5.5-pool-x86_64
+

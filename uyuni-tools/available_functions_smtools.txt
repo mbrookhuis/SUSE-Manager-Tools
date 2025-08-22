@@ -1,5 +1,3 @@
-def load_yaml(stream):
-
 SMT
 ===
 
@@ -29,8 +27,9 @@ def error_handling(self, err_type, message):
 
 system
 ------
-def system_getdetails(self):
+def system_getdetails(self, sid=0):
 def system_getname(self, id):
+def system_listsystems(self):
 def system_getrelevanterrata(self):
 def system_getsubscribedbasechannel(self):
 def system_listinactivesystems(self):
@@ -106,6 +105,8 @@ kickstart
 def kickstart_keys_listallkeys(self):
 def kickstart_tree_list(self, channel):
 def kickstart_tree_deletetreeandprofiles(self, label):
+def kickstart_list_kickstarts(self):
+def kickstart_deleteprofile(self, label):
 
 scheduling
 ----------

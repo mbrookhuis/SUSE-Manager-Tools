@@ -393,15 +393,19 @@ class SMTools:
     API call related to system
     """
 
-    def system_getdetails(self):
+    def system_getdetails(self, sid=0):
+        if sid == 0:
+            systemid = self.systemid
+        else:
+            systemid = sid
         try:
-            return self.client.system.getDetails(self.session, self.systemid)
+            return self.client.system.getDetails(self.session, systemid)
         except xmlrpc.client.Fault as err:
             self.log_debug('api-call: system.getDetails')
             self.log_debug('Value passed: ')
-            self.log_debug('  system_id:  {}'.format(self.systemid))
+            self.log_debug('  system_id:  {}'.format(systemid))
             self.log_debug("Error: \n{}".format(err))
-            self.fatal_error('Unable to get details for server {}.'.format(self.hostname))
+            self.fatal_error('Unable to get details for server. Error: \n{}'.format(err))
 
     def system_getname(self, id):
         try:
@@ -412,6 +416,14 @@ class SMTools:
             self.log_debug('  system_id:  {}'.format(id))
             self.log_debug("Error: \n{}".format(err))
             self.fatal_error('Unable to get hostname for server with ID {}.'.format(id))
+
+    def system_listsystems(self):
+        try:
+            return self.client.system.listSystems(self.session)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: system.listSystems')
+            self.log_debug("Error: \n{}".format(err))
+            self.fatal_error('Unable to get list of all systems.')
 
     def system_getrelevanterrata(self):
         try:
@@ -1382,6 +1394,15 @@ class SMTools:
             self.log_debug(f"Error: \n{err}")
             self.fatal_error(f'Unable to list distributions for channel {channel}')
 
+    def kickstart_list_kickstarts(self):
+        """"""
+        try:
+            return self.client.kickstart.listKickstarts(self.session)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: kickstart.listKickstarts')
+            self.log_debug(f"Error: \n{err}")
+            self.fatal_error('Unable to list all profiles')
+
     def kickstart_tree_deletetreeandprofiles(self, label):
         """
         Deletes a distribution tree and its associated profiles identified by the
@@ -1405,6 +1426,27 @@ class SMTools:
             self.log_debug(f'  label:    {label}')
             self.log_debug(f"Error: \n{err}")
             self.fatal_error(f'Unable to delete distribution and profiles for {label}')
+
+    def kickstart_deleteprofile(self, label):
+        """
+        Deletes a kickstart profile with the specified label using a remote API call. This
+        method facilitates interaction with an external server to remove a specific profile
+        identified by the label. Logging is used to capture debug information and errors.
+
+        :param label: The identifier of the kickstart profile to delete
+        :type label: str
+        :return: The server's response from the delete profile operation
+        :rtype: Any
+        :raises xmlrpc.client.Fault: Raised if the API call encounters an issue during execution
+        """
+        try:
+            return self.client.kickstart.deleteProfile(self.session, label)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: kickstart.deleteProfile')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  label:    {label}')
+            self.log_debug(f"Error: \n{err}")
+            self.fatal_error(f'Unable to delete profile for {label}')
 
 
     """

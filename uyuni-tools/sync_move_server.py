@@ -92,6 +92,18 @@ class SMLM:
         smt.log_info("Hostname : {}".format(self.server))
         smt.log_info("Systemid : {}".format(self.systemid))
 
+    def system_delete(self, cleanup="NO_CLEANUP"):
+        try:
+            return self.client.system.deleteSystem(self.session, self.systemid, cleanup)
+        except xmlrpc.client.Fault as err:
+            smt.log_debug('api-call: system.deleteSystem')
+            smt.log_debug('Value passed: ')
+            smt.log_debug('  system_id:    {}'.format(self.systemid))
+            smt.log_debug('  cleanup_type: {}'.format(cleanup))
+            smt.log_debug("Error: \n{}".format(err))
+            smt.fatal_error('Unable to delete host.')
+
+
     def get_server_id(self, fatal=True):
         """
         Get system Id from host
@@ -309,17 +321,20 @@ def start_sync(args, user, password):
         sync_repos(args.server, smlm_old, args.exitonerror)
         # sync_custominfo(args.server, smlm_old)
         # sync_formulars(args.server, smlm_old)
-        return
-    if args.configchannels:
-        sync_configchannels(smlm_old, args.exitonerror)
-    if args.systemgroups:
-        sync_systemgroups(smlm_old, args.exitonerror)
-    if args.repos:
-        sync_repos(args.server, smlm_old, args.exitonerror)
-    # if args.custominfo:
-    # sync_custominfo(args.server, smlm_old)
-    # if args.formulars:
-    # sync_formulars(args.server, smlm_old)
+    else:
+        if args.configchannels:
+            sync_configchannels(smlm_old, args.exitonerror)
+        if args.systemgroups:
+            sync_systemgroups(smlm_old, args.exitonerror)
+        if args.repos:
+            sync_repos(args.server, smlm_old, args.exitonerror)
+        # if args.custominfo:
+        #     sync_custominfo(args.server, smlm_old)
+        # if args.formulars:
+        #     sync_formulars(args.server, smlm_old)
+    if args.delete:
+        smlm_old.system_delete()
+        smt.log_info(f"deleted server {args.server} from {args.fromsmlm}")
     return
 
 def check_arguments(args):
@@ -335,6 +350,9 @@ def check_arguments(args):
     if not args.fromsmlm:
         smt.log_error("Option --fromsmlm not given and is required. Aborting operation")
         sys.exit(1)
+    if args.delete and not args.exitonerror:
+        smt.log_error("Option --delete is given but not --exitonerrorr. This could potentially cause data loss. \n"
+                      "Operation will continue.")
     if args.user and args.password:
         return args.user, args.password
     if args.user and args.password and args.credential:
@@ -377,7 +395,7 @@ def main():
     parser.add_argument("-p", "--password", help="password of the user")
     parser.add_argument("-c", "--credential", help="file containing the credentials of the SMLM was previously. "
                                                    "format: user:password base64 encoded")
-    parser.add_argument("-a", "--all", action="store_true", default=1,
+    parser.add_argument("-a", "--all", action="store_true", default=0,
                         help="Update all information")
     parser.add_argument("-t", "--configchannels", action="store_true", default=0,
                         help="Add configuration channels from previous to current.")
@@ -385,6 +403,8 @@ def main():
                         help="Add systemgroups from previous to current.")
     parser.add_argument("-r", "--repos", action="store_true", default=0,
                         help="Add repositories from previous to current.")
+    parser.add_argument("-d", "--delete", action="store_true", default=0,
+                        help="After completion delete the system from the old MLM/SUMA server. Will only with option --exitonerror to prevent data loss.")
     #parser.add_argument("-i", "--custominfo", action="store_true", default=0,
     #                    help="Add custominfo from previous to current.")
     #parser.add_argument("-o", "--formulars", action="store_true", default=0,

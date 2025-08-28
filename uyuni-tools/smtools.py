@@ -417,6 +417,17 @@ class SMTools:
             self.log_debug("Error: \n{}".format(err))
             self.fatal_error('Unable to get hostname for server with ID {}.'.format(id))
 
+    def system_delete(self, cleanup="NO_CLEANUP"):
+        try:
+            return self.client.system.deleteSystem(self.session, self.systemid, cleanup)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: system.deleteSystem')
+            self.log_debug('Value passed: ')
+            self.log_debug('  system_id:    {}'.format(self.systemid))
+            self.log_debug('  cleanup_type: {}'.format(cleanup))
+            self.log_debug("Error: \n{}".format(err))
+            self.fatal_error('Unable to delete host {}.'.format(self.hostname))
+
     def system_listsystems(self):
         try:
             return self.client.system.listSystems(self.session)

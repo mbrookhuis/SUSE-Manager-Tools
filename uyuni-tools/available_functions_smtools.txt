@@ -30,6 +30,7 @@ system
 def system_getdetails(self, sid=0):
 def system_getname(self, id):
 def system_listsystems(self):
+def system_deletesystem(self):
 def system_getrelevanterrata(self):
 def system_getsubscribedbasechannel(self):
 def system_listinactivesystems(self):

@@ -757,8 +757,8 @@ class SMTools:
         self.log_info("New basechannel will be: {}".format(basechannel))
         self.log_info("New childchannes will be: {}".format(childchannels))
         try:
-            schedule_id = self.client.system.scheduleSPMigration(self.session, self.systemid, spident, basechannel,
-                                                                 childchannels, dryrun, True, date)
+            schedule_id = self.client.system.scheduleProductMigration(self.session, self.systemid, spident,
+                                                                      basechannel, childchannels, dryrun, True, date)
         except xmlrpc.client.Fault as err:
             self.log_debug('api-call: system.scheduleSPMigration')
             self.log_debug('Value passed: ')

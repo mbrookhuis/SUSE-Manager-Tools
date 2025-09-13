@@ -210,18 +210,50 @@ def sync_systemgroups(smlm_old, exitonerror):
         if group.get('subscribed') == 1:
             smt.log_info(f"Group {group.get('system_group_name')}")
             not_found = True
+            check_group = group_name(group.get('system_group_name'))
             for new_group in available_groups:
-                if group.get('system_group_name') == new_group.get('name'):
+                if check_group == new_group.get('name'):
                     not_found = False
                     smt.system_set_group_membership(new_group.get('id'), exitonerror)
+                    smt.log_info(f"Group {check_group} set")
                     break
             if not_found:
                 if exitonerror:
-                    smt.fatal_error(f"Group {group.get('system_group_name')} not set. Exiting!!!!!")
+                    smt.fatal_error(f"Group {check_group} not set. Exiting!!!!!")
                 else:
-                    smt.log_error(f"Group {group.get('system_group_name')} not set")
+                    smt.log_error(f"Group {check_group} not set")
+    add_os_group(exitonerror)
     smt.log_info("finished setting systemgroup membership")
     return
+
+def add_os_group(exitonerror):
+    base_channel = smt.system_getsubscribedbasechannel().get('label')
+    try:
+        for group, prefixs in smtools.CONFIGSM['migrate']['os_groups'].items():
+            for prefix in prefixs:
+                if base_channel.startswith(prefix):
+                    smt.system_set_group_membership(smt.systemgroup_get_details(group).get('id'), exitonerror)
+                    smt.log_info(f"Group {group} set")
+                    return
+    except:
+        smt.log_debug("error when adding to OS group")
+        pass
+
+
+def group_name(group):
+    """
+    Find the new group name
+    :param group:
+    :return: new group name or old group when no change is needed
+    """
+    try:
+        for rename_from, rename_to in smtools.CONFIGSM['migrate']['rename_groups'].items():
+            if rename_from.lower() in group.lower():
+                group = rename_to
+                return group
+    except KeyError:
+        pass
+    return group
 
 def sync_repos(server, smlm_old, exitonerror):
     """
@@ -251,12 +283,18 @@ def channel_name(channel):
     :param channel:
     :return: new channel name or nil when isn't needed/present
     """
-    for skip_channel in smtools.CONFIGSM['migrate']['skip_channels']:
-        if skip_channel in channel:
-            return None
-    for rename_from, rename_to in smtools.CONFIGSM['migrate']['rename_channels'].items():
-        if rename_from in channel:
-            channel = channel.replace(rename_from, rename_to)
+    try:
+        for skip_channel in smtools.CONFIGSM['migrate']['skip_channels']:
+            if skip_channel in channel:
+                return None
+    except KeyError:
+        pass
+    try:
+        for rename_from, rename_to in smtools.CONFIGSM['migrate']['rename_channels'].items():
+            if rename_from in channel:
+                channel = channel.replace(rename_from, rename_to)
+    except:
+        pass
     try:
         for label, new_label in smtools.CONFIGSM['migrate']['project_labels'].items():
             label_elements = label.split('*')

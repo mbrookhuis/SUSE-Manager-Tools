@@ -35,6 +35,12 @@ migrate:
    project_labels:
       test*sp6: s156-test
       prod*sp6: s156-prod
+   rename_groups:
+      <part of group to replace>: <new group>
+   os_groups:
+      <group name>:
+         - <project CLM>
+         - <project CLM>
 
 error_handling:
   # fatal: report error, exit script

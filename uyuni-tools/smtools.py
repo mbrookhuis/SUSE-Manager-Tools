@@ -1562,3 +1562,37 @@ class SMTools:
             message = f'Unable to delete activationkey {key}. The error is: \n{err}'
             self.fatal_error(message)
 
+    def activationkey_create_vh(self, key, description, base_channel_label, fatal_error=True, entitlements=None, universal_default=False):
+        if entitlements is None:
+            entitlements = []
+        try:
+            return self.client.activationkey.create(self.session, key, description, base_channel_label, entitlements, universal_default)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to create activationkey {key}. The message is: \n{err}'
+            if fatal_error:
+                self.log_debug('api-call: activationkey.create')
+                self.log_debug('Value passed: ')
+                self.log_debug(f'  key:                  {key}')
+                self.log_debug(f'  description:          {description}')
+                self.log_debug(f'  baseChannelLabel:     {base_channel_label}')
+                self.log_debug(f'  entitlements:         {entitlements}')
+                self.log_debug(f'  universalDefault:     {universal_default}')
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(message)
+            else:
+                self.log_warning(message)
+                return key
+
+    def activationkey_add_child_channels(self, key, child_channels):
+        try:
+            return self.client.activationkey.addChildChannels(self.session, key, child_channels)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: activationkey.addChildChannels')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  key:           {key}')
+            self.log_debug(f'  childChannels: {child_channels}')
+            self.log_debug(f"Error: \n{err}")
+            message = f'Unable to add childChannels {key}. The error is: \n{err}'
+            self.fatal_error(message)
+
+

@@ -29,8 +29,7 @@ The following scripts are included:
 - create_repos.py
 From a pre-defined yaml channels will be created in the give parent channels. This also includes the creation of the repositories and sync schedule. Also the initial synchronization can be started.
 
-- create_software_project.py
-This will create a new software content lifecycle project. It can also be used to add or remove source channels from an existing project.
+- [create_software_project.py](documentation/create_software_project.md)
 
 - group_system_update.py
 This script will update all systems in the given system group.

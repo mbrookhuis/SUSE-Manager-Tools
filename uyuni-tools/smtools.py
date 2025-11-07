@@ -1595,4 +1595,20 @@ class SMTools:
             message = f'Unable to add childChannels {key}. The error is: \n{err}'
             self.fatal_error(message)
 
-
+    """
+    API call related to errata
+    """
+    def errata_findbycve(self, cve, fatal_error=True):
+        try:
+            return self.client.errata.findByCve(self.session, cve)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to get information from CVE  {cve}. The error is: \n{err}'
+            if fatal_error:
+                self.log_debug('api-call: activationkey.delete')
+                self.log_debug('Value passed: ')
+                self.log_debug(f'  cve:   {cve}')
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(message)
+            else:
+                self.log_error(message)
+                return []

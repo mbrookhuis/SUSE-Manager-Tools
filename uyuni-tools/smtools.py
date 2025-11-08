@@ -91,8 +91,9 @@ class SMTools:
             if not os.path.exists(CONFIGSM['dirs']['log_dir']):
                 os.makedirs(CONFIGSM['dirs']['log_dir'])
             log_name = os.path.join(log_dir, self.program + ".log")
-
-        formatter = logging.Formatter('%(asctime)s |  {} | %(levelname)s | %(message)s'.format(self.hostname),
+        if not self.hostname:
+            self.hostname = self.program
+        formatter = logging.Formatter('%(asctime)s | {} | %(levelname)s | %(message)s'.format(self.hostname),
                                       '%d-%m-%Y %H:%M:%S')
 
         fh = logging.FileHandler(log_name, 'a')
@@ -941,6 +942,18 @@ class SMTools:
             self.log_debug("Error: \n{}".format(err))
             self.minor_error('Unable to get errata for channel {}.'.format(clone_channel))
 
+    def channel_software_mergeerrata_cve(self, parent_channel, clone_channel, cves):
+        try:
+            return self.client.channel.software.mergeErrata(self.session, parent_channel, clone_channel, cves)
+        except xmlrpc.client.Fault as err:
+            self.log_debug('api-call: channel.software.mergeErrata')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  parent_channel: {parent_channel}')
+            self.log_debug(f'  clone_channel:  {clone_channel}')
+            self.log_debug(f'  advisory_names: {cves}')
+            self.log_debug(f"Error: \n{err}")
+            self.fatal_error(f'Unable to get errata for channel {clone_channel}.')
+
     def channel_software_mergepackages(self, parent_channel, clone_channel):
         try:
             return self.client.channel.software.mergePackages(self.session, parent_channel, clone_channel)
@@ -986,7 +999,17 @@ class SMTools:
             self.log_debug(f"Error: \n{err}")
             self.minor_error(f"Unable to get subscribed systems for channel {channel}")
 
-
+    def channel_software_addpackages(self, channel, packages):
+        try:
+            return self.client.channel.software.addPackages(self.session, channel, packages)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to add packages to channel {channel}. The error is: \n{err}'
+            self.log_debug('api-call: channel.software.addPackages')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  channel:    {channel}')
+            self.log_debug(f"  packages:   {packages})")
+            self.log_debug(f"Error: \n{err}")
+            self.fatal_error(message)
 
 
     def get_labels_all_basechannels(self):
@@ -1173,7 +1196,7 @@ class SMTools:
         try:
             return self.client.contentmanagement.listProjectSources(self.session, project)
         except xmlrpc.client.Fault as err:
-            self.log_debug('api-call: contentmanagement.listProjectsources')
+            self.log_debug('api-call: contentmanagement.listProjectSources')
             self.log_debug('Value passed: ')
             self.log_debug('  project: {}'.format(project))
             self.log_debug("Error: \n{}".format(err))
@@ -1599,12 +1622,27 @@ class SMTools:
     API call related to errata
     """
     def errata_findbycve(self, cve, fatal_error=True):
+        """
+        Finds errata information associated with a specific Common Vulnerabilities and Exposures (CVE)
+        identifier by interacting with an XML-RPC client. If an error occurs during retrieval, it
+        handles the error based on the specified behavior.
+
+        :param cve: The CVE identifier for which the errata information is to be retrieved.
+        :type cve: str
+        :param fatal_error: Determines if the method should halt execution upon a retrieval error.
+                            Defaults to True.
+        :type fatal_error: bool
+        :return: A list of errata associated with the given CVE on successful retrieval. Returns an
+                 empty list if an error occurs and `fatal_error` is set to False.
+        :rtype: list
+        :raises xmlrpc.client.Fault: If an issue occurs during the XML-RPC request.
+        """
         try:
             return self.client.errata.findByCve(self.session, cve)
         except xmlrpc.client.Fault as err:
             message = f'Unable to get information from CVE  {cve}. The error is: \n{err}'
             if fatal_error:
-                self.log_debug('api-call: activationkey.delete')
+                self.log_debug('api-call: errata.findByCve')
                 self.log_debug('Value passed: ')
                 self.log_debug(f'  cve:   {cve}')
                 self.log_debug(f"Error: \n{err}")
@@ -1612,3 +1650,90 @@ class SMTools:
             else:
                 self.log_error(message)
                 return []
+
+    def errata_applicabletochannels(self, ad_name, fatal_error=True):
+        """
+        Determines which channels an advisory is applicable to.
+
+        This method queries the server using the advisory name and retrieves
+        the information about the channels associated with that advisory.
+        If an error occurs, it either logs an error message or raises a
+        fatal error depending on the `fatal_error` flag.
+
+        :param ad_name: Advisory name to query for applicable channels.
+        :type ad_name: str
+        :param fatal_error: Flag indicating whether to raise a fatal error
+            or just log the error and return an empty list when an error occurs.
+        :type fatal_error: bool, optional
+        :return: List of channels applicable to the provided advisory name.
+            If an error occurs and `fatal_error` is False, returns an empty list.
+        :rtype: list
+        """
+        try:
+            return self.client.errata.applicableToChannels(self.session, ad_name)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to get information from advisory_name  {ad_name}. The error is: \n{err}'
+            if fatal_error:
+                self.log_debug('api-call: errata.applicableToChannels')
+                self.log_debug('Value passed: ')
+                self.log_debug(f'  advisory_name:   {ad_name}')
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(message)
+            else:
+                self.log_error(message)
+                return []
+
+    def errata_clone(self, channel, ad_names):
+        """
+        Clones an advisory to a specified channel using the API client. This method communicates
+        with the server to perform the cloning operation. If the operation fails, it will log
+        detailed debugging information and raise a fatal error with an appropriate message.
+
+        :param channel: The target channel where the advisory will be cloned.
+        :param ad_names: The name(s) of the advisories to be cloned.
+        :return: The result of the cloning operation from the API client.
+        """
+        try:
+            return self.client.errata.clone(self.session, channel, ad_names)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to add advisory_name  {ad_names} to {channel}. The error is: \n{err}'
+            self.log_debug('api-call: errata.clone')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  channel:         {channel}')
+            self.log_debug(f'  advisory_name:   {ad_names}')
+            self.log_debug(f"Error: \n{err}")
+            self.fatal_error(message)
+
+    def errata_listpackages(self, cve):
+        """
+        Retrieve a list of packages associated with a given CVE (Common Vulnerabilities and Exposures)
+        identifier. This function interfaces with an external client, handling potential
+        errors in the process.
+
+        :param cve: The CVE identifier for which package information is requested.
+        :type cve: str
+        :return: A list of packages associated with the specified CVE.
+        :rtype: list
+        :raises xmlrpc.client.Fault: If the external client raises a fault during the API call.
+        """
+        try:
+            return self.client.errata.listPackages(self.session, cve)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to find packages for {cve}. The error is: \n{err}'
+            self.log_debug('api-call: errata.listPackages')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  advisory_name:      {cve}')
+            self.log_debug(f"Error: \n{err}")
+            self.fatal_error(message)
+
+    def errata_addpackages(self, cve, packages):
+        try:
+            return self.client.errata.addPackages(self.session, cve, packages)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to find packages for {cve}. The error is: \n{err}'
+            self.log_debug('api-call: errata.addPackages')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  advisory_name:      {cve}')
+            self.log_debug(f"  packages:           {packages})")
+            self.log_debug(f"Error: \n{err}")
+            self.fatal_error(message)

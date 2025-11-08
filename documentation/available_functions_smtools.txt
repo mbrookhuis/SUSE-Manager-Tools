@@ -55,6 +55,7 @@ system_set_group_membership(self, sgid, fatal=True)
 
 softwarechannel
 ---------------
+channel_software_addpackages(self, channel, packages)
 channel_software_associaterepo(self, channel, repo)
 channel_software_clone(self, channel, clone_channel, original_state)
 channel_software_create(self, label, name, summary, archlabel, parentlabel)
@@ -63,6 +64,7 @@ channel_software_createrepo(self, channel, ch_type, ch_url, no_fatal=False)
 channel_software_getdetails(self, channel, no_fatal=False)
 channel_software_listchildren(self, channel)
 channel_software_mergeerrata(self, parent_channel, clone_channel)
+channel_software_mergeerrata_cve(self, parent_channel, clone_channel, cves)
 channel_software_mergepackages(self, parent_channel, clone_channel)
 channel_software_getrepodetails(self, channel, no_fatal=False)
 channel_software_syncrepo(self, repo, schedule)
@@ -129,4 +131,7 @@ activationkey_listactivationkeys(self)
 
 errata
 -------
+errata_applicabletochannels(self, ad_name, fatal_error=True)
+errata_clone(self, channel, ad_names)
 errata_findbycve(self, cve, fatal_error=True)
+errata_listpackages(self, cve)

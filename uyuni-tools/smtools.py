@@ -1011,6 +1011,17 @@ class SMTools:
             self.log_debug(f"Error: \n{err}")
             self.fatal_error(message)
 
+    def channel_software_regenerateyumcache(self, channel, force=True):
+        try:
+            return self.client.channel.software.regenerateYumCache(self.session, channel, force)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to regenerate yum cache for channel {channel}. The error is: \n{err}'
+            self.log_debug('api-call: channel.software.regenerateYumCache')
+            self.log_debug('Value passed: ')
+            self.log_debug(f'  channel:    {channel}')
+            self.log_debug(f"  force:      {force})")
+            self.log_debug(f"Error: \n{err}")
+            self.fatal_error(message)
 
     def get_labels_all_basechannels(self):
         all_channels = None

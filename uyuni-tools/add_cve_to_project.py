@@ -119,6 +119,7 @@ def add_cve_channels(project_info, cve):
                     packages = get_cve_packages(result.get('advisory_name'))
                     smt.channel_software_addpackages(channel_to_clone, packages)
                     smt.log_debug(f"packages: {packages}")
+                smt.channel_software_regenerateyumcache(channel_to_clone)
                 smt.log_info(f"CVE added to channel {channel_to_clone}")
     smt.log_debug("Finished add_cve_channels")
 

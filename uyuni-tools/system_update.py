@@ -139,7 +139,7 @@ def do_upgrade(no_reboot, force_reboot):
 
 def do_spmigrate(new_basechannel, no_reboot, no_dryrun):
     """
-    Perform a sp migration for the given server
+    Perform a sp data for the given server
     """
     checked_new_child_channels = []
     old_basechannel = smt.system_getsubscribedbasechannel()
@@ -185,10 +185,10 @@ def do_spmigrate(new_basechannel, no_reboot, no_dryrun):
             time.sleep(20)
             result_spmig = smt.system_schedulespmigration(spident, new_basechannel, checked_new_child_channels, False, datetime.datetime.now(), "SupportPack Migration")
         if result_spmig and not no_reboot:
-            smt.log_info("Support Pack migration completed successful, rebooting server {}".format(smt.hostname))
+            smt.log_info("Support Pack data completed successful, rebooting server {}".format(smt.hostname))
             smt.system_schedulereboot(datetime.datetime.now())
         elif result_spmig and no_reboot:
-            smt.log_info("Support Pack migration completed successful, but server {} will not be rebooted. Please reboot manually ASAP.".format(smt.hostname))
+            smt.log_info("Support Pack data completed successful, but server {} will not be rebooted. Please reboot manually ASAP.".format(smt.hostname))
         else:
             smt.log_error("SP Migration failed. Please check logs.")
         smt.system_schedulepackagerefresh(datetime.datetime.now())
@@ -209,7 +209,7 @@ def check_channel(channel, channel_all):
 
 def check_spmigration_available():
     """
-    Check if there is a SP migration is available
+    Check if there is a SP data is available
     """
     migration_targets = smt.system_listmigrationtargets()
     if migration_targets:
@@ -242,7 +242,7 @@ def remove_ltss():
 
 def check_for_sp_migration():
     """
-    Check if a sp migration is released for this server
+    Check if a sp data is released for this server
     """
     current_bc = smt.system_getsubscribedbasechannel().get('label')
     if "sle" not in current_bc and "opensuse" not in current_bc:
@@ -415,7 +415,7 @@ def main():
         parser.add_argument("-n", "--noreboot", action="store_true", default=0,
                             help="Do not reboot server after patching or supportpack upgrade.")
         parser.add_argument("-d", "--nodryrun", action="store_true", default=0,
-                            help="Do not run a dry run before performing a SP migration.")
+                            help="Do not run a dry run before performing a SP data.")
         parser.add_argument("-f", "--forcereboot", action="store_true", default=0,
                             help="Force a reboot server after patching or supportpack upgrade.")
         parser.add_argument("-c", '--applyconfig', action="store_true", default=0,

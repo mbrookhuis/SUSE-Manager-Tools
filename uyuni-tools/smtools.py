@@ -764,13 +764,13 @@ class SMTools:
             self.log_debug('api-call: system.scheduleSPMigration')
             self.log_debug('Value passed: ')
             self.log_debug('  system_id:       {}'.format(self.systemid))
-            self.log_debug('  migration target {}'.format(spident))
+            self.log_debug('  data target {}'.format(spident))
             self.log_debug('  basechannels:    {}'.format(basechannel))
             self.log_debug('  childchannels:   {}'.format(childchannels))
             self.log_debug('  dryrun:          {}'.format(dryrun))
             self.log_debug('  date:            {}'.format(date))
             self.log_debug("Error: \n{}".format(err))
-            self.fatal_error('Unable to schedule Support Pack migration for server {}.'.format(self.hostname))
+            self.fatal_error('Unable to schedule Support Pack data for server {}.'.format(self.hostname))
 
         timeout = CONFIGSM['suman']['timeout'] - 30
         time.sleep(30)
@@ -1381,15 +1381,18 @@ class SMTools:
             self.log_debug("Error: \n{}".format(err))
             self.fatal_error('Unable to add or remove systems to systemgroup')
 
-    def systemgroup_create(self, group, description):
+    def systemgroup_create(self, group, description, fatal=True):
         try:
             return self.client.systemgroup.create(self.session, group, description)
         except xmlrpc.client.Fault as err:
-            self.log_debug('api-call: systemgroups.create')
-            self.log_debug(f'  Group:        {group}')
-            self.log_debug(f'  Description:  {description}')
-            self.log_debug("Error: \n{}".format(err))
-            self.fatal_error('Unable create systemgroup')
+            if fatal:
+                self.log_debug('api-call: systemgroups.create')
+                self.log_debug(f'  Group:        {group}')
+                self.log_debug(f'  Description:  {description}')
+                self.log_debug("Error: \n{}".format(err))
+                self.fatal_error('Unable create systemgroup')
+            else:
+                self.log_warning(f'systemgroup {group} already exists.')
 
     """
     API call related to kickstart

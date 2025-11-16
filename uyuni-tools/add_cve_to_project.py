@@ -15,29 +15,29 @@
 #
 
 import argparse
-import datetime
 import sys
 import time
 from argparse import RawTextHelpFormatter
 
 import smtools
 
-def get_project_source_labels(project_info):
+
+def get_project_source_labels(project):
     """
-    Fetch and return the list of channel labels for the given project's sources.
+    Retrieve the source channel labels for a given project.
 
-    This function interacts with a content management system to retrieve the
-    sources associated with the specified project. It extracts and compiles
-    the labels of all channels linked to the project's sources.
+    This function fetches all source entries associated with the specified
+    project and extracts their channel labels into a list. The process
+    includes logging debug start and finish messages.
 
-    :param project_info: A dictionary containing information about the project,
-        including its name.
-    :type project_info: dict
-    :return: A list of channel labels retrieved from the project's sources.
+    :param project: The project for which source channel labels are
+        to be retrieved
+    :type project: str
+    :return: A list of channel labels extracted from the project sources
     :rtype: list
     """
     smt.log_debug("Start get_project_source_labels")
-    project_sources = smt.contentmanagement_listprojectsources(project_info.get('name'))
+    project_sources = smt.contentmanagement_listprojectsources(project)
     channels = []
     for source in project_sources:
         channels.append(source.get('channelLabel'))
@@ -88,27 +88,28 @@ def get_cve_packages(cve):
     return packages
 
 
-def add_cve_channels(project_info, cve):
+def add_cve_channels(project, env, cve):
     """
-    Adds a CVE to appropriate project channels by evaluating and cloning relevant advisory channels.
+    Adds CVE (Common Vulnerabilities and Exposures) to the appropriate software channels.
 
-    This function determines which project channels are associated with the given CVE and ensures
-    that the CVE is incorporated into the appropriate channels. If a channel already contains the
-    specific CVE, no further action is taken for that channel. Otherwise, the CVE is cloned into
-    the necessary channels and associated packages are added.
+    This function determines which channels should include the given CVE by analyzing the project's source
+    labels and advisory channels. It either skips channels where the CVE is already present or clones
+    CVE-related information and adds the necessary packages to the respective channels. It also regenerates
+    the YUM cache for updated channels.
 
-    :param project_info: Dictionary containing details about the project, including its name
-        and environment. Used to determine the project channels.
-    :type project_info: dict
-    :param cve: The CVE identifier to be processed and added to needed project channels.
+    :param project: The project identifier or name to fetch source labels.
+    :type project: str
+    :param env: The environment name (e.g., production, staging) to distinguish channels.
+    :type env: str
+    :param cve: The identifier for the Common Vulnerability and Exposure to be added to channels.
     :type cve: str
     :return: None
     """
     smt.log_debug("Start add_cve_channels")
-    project_channels = get_project_source_labels(project_info)
+    project_channels = get_project_source_labels(project)
     advisory_channels = get_advisory_channels(cve)
     for project_channel in project_channels:
-            channel_to_clone = f"{project_info.get('name')}-{project_info.get('firstEnvironment')}-{project_channel}"
+            channel_to_clone = f"{project}-{env}-{project_channel}"
             if channel_to_clone in advisory_channels:
                 smt.log_info(f"CVE is already in channel {channel_to_clone}")
                 continue
@@ -139,9 +140,31 @@ def do_add_cves(project_info, cves):
     """
     smt.log_debug("Start do_add_cves")
     for cve in cves:
-        add_cve_channels(project_info, cve)
+        add_cve_channels(project_info.get('label'), project_info.get('firstEnvironment'), cve)
     smt.log_debug("Finished do_add_cves")
 
+def perform_update(project, cves):
+    """
+    Performs an update on the given project by retrieving its environment details
+    and adding CVE channels to each environment.
+
+    This function processes the project's environments and adds the given list of
+    CVE channels to each identified environment. Debug logs are generated at the
+    start and at the completion of the operation.
+
+    :param project: The name or identifier of the project to update.
+    :type project: str
+    :param cves: A list of CVEs to be added to the project's environments.
+    :type cves: list
+    :return: None
+    """
+    smt.log_debug("Start perform_update")
+    project_details = smt.contentmanagement_listprojectenvironment(project)
+    for environment_details in project_details:
+        env = environment_details.get('label')
+        for cve in cves:
+            add_cve_channels(project, env, cve)
+    smt.log_debug("Finished perform_update")
 
 def perform_promote(project):
     """
@@ -164,7 +187,7 @@ def perform_promote(project):
         else:
             if source_env:
                 target_env = environment_details.get('label')
-                update_environment(project, source_env, target_env)
+                promote_environment(project, source_env, target_env)
     smt.log_debug("Finished perform_promote")
 
 def sync_completed(env, project, wait):
@@ -208,7 +231,7 @@ def sync_completed(env, project, wait):
                     smt.log_error(f"for environment {env} building is still in progress and option wait is False.")
                     return False
 
-def update_environment(project, source_env, target_env):
+def promote_environment(project, source_env, target_env):
     """
     Updates the environment by promoting the project from a source environment to a
     target environment if the source environment is synchronized successfully. Logs
@@ -254,6 +277,10 @@ def check_arguments(args):
     if not project_present:
         smt.log_error(f"Project {args.project} doesn't exists. Aborting operation")
         sys.exit(1)
+    if args.promote and args.update:
+        smt.log_error(f"The options --promote and --update can not be used together. Aborting operation")
+        sys.exit(1)
+
     # check if CVE exists
     cves = []
     for cve in args.cve:
@@ -272,22 +299,21 @@ def check_arguments(args):
 
 def main():
     """
-    Main function to add a CVE to the first stage of a project or update all other environments
-    of the project as specified. The script interacts with the `SMTools` library to log in,
-    validate arguments, handle operations, and manage the lifecycle of CVE additions.
+    This script adds a CVE to the first stage of a specified project. It provides options
+    to update or promote other environments of the project. It uses the SMTools to manage
+    and log activities.
 
-    The function is designed to:
-    1. Parse arguments provided through the command line including project name, CVE numbers,
-       and an optional update flag.
-    2. Log relevant information and operations throughout the process.
-    3. Execute the specified CVE addition task or optional update of all environments.
-    4. Properly terminate operations and close the program.
+    :raises argparse.ArgumentError: If required arguments are not provided.
 
-    :param args: Command-line arguments for project name, CVEs to add, and an optional update flag.
-    :type args: argparse.Namespace
-
-    :raises:
-        `SystemExit` if required arguments are missing or invalid during argument parsing.
+    :param -p --project: The name of the project where the CVE will be added.
+    :param -c --cve: The CVE Number(s). This option can be used multiple times.
+    :param -u --update: A flag to update all other environments of the project.
+    :param -p --promote: A flag to promote all other environments of the project.
+    :param --version: Displays the version of the script.
+    :type -p --project: str
+    :type -c --cve: list of str
+    :type -u --update: bool
+    :type -p --promote: bool
 
     :return: None
     """
@@ -306,6 +332,8 @@ def main():
                         help="The CVE Number. This option can be used multuple times", required=True)
     parser.add_argument("-u", "--update", action="store_true", default=0,
                         help="Update all other environments of the project")
+    parser.add_argument("-r", "--promote", action="store_true", default=0,
+                        help="Promote all other environments of the project")
     parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, November 7, 2025')
     args = parser.parse_args()
     smt.log_info("Start")
@@ -314,8 +342,11 @@ def main():
     project_info, cves = check_arguments(args)
     smt.log_info(f"Project {project_info}")
     smt.log_info(f"Add CVEs: {cves}")
-    do_add_cves(project_info, cves)
     if args.update:
+        perform_update(args.project, cves)
+    else:
+        do_add_cves(project_info, cves)
+    if args.promote:
         perform_promote(args.project)
     smt.close_program()
 

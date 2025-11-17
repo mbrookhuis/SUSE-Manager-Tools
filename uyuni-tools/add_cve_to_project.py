@@ -4,14 +4,17 @@
 # GNU Public License. No warranty. No Support
 # For question/suggestions/bugs mail: michael.brookhuis@suse.com
 #
-# Version: 2025-11-07
+# Version: 2025-11-17
 #
 # Created by: SUSE Michael Brookhuis
 #
-# This script will add a CVE to the first stage of a project.
+# This script will add a CVE to the first stage of a project:
+#  - With the option --update it will add the CVEs to the other environments of the project.
+#  - When using the option --promote it will promote the other environments of the project.
+#  - If no --update or --promote option is used, the script will only add the CVEs to the first environment of the project.
 #
 # Releases:
-# 2025-11-07 M.Brookhuis - initial release.
+# 2025-11-17 M.Brookhuis - initial release.
 #
 
 import argparse
@@ -334,7 +337,7 @@ def main():
                         help="Update all other environments of the project")
     parser.add_argument("-r", "--promote", action="store_true", default=0,
                         help="Promote all other environments of the project")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, November 7, 2025')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, November 17, 2025')
     args = parser.parse_args()
     smt.log_info("Start")
     smt.log_debug("Given options: {}".format(args))

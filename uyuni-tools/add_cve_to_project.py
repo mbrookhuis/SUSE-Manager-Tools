@@ -4,7 +4,7 @@
 # GNU Public License. No warranty. No Support
 # For question/suggestions/bugs mail: michael.brookhuis@suse.com
 #
-# Version: 2025-11-17
+# Version: 2025-11-19
 #
 # Created by: SUSE Michael Brookhuis
 #
@@ -15,6 +15,7 @@
 #
 # Releases:
 # 2025-11-17 M.Brookhuis - initial release.
+# 2025-11-19 M.Brookhuis - added the options to also add packages and patches to the project
 #
 
 import argparse
@@ -47,7 +48,7 @@ def get_project_source_labels(project):
     smt.log_debug("Finished get_project_source_labels")
     return channels
 
-def get_advisory_channels(cve):
+def get_advisory_channels(errata):
     """
     Retrieve advisory channels for a given CVE.
 
@@ -55,20 +56,20 @@ def get_advisory_channels(cve):
     identifier and extracts their corresponding labels. It ensures that
     only the relevant labels are included in the result.
 
-    :param cve: The CVE identifier for which advisory channels are to be retrieved.
-    :type cve: str
+    :param errata: The CVE identifier for which advisory channels are to be retrieved.
+    :type errata: str
     :return: A list of channel labels applicable to the provided CVE.
     :rtype: list
     """
     smt.log_debug("Start get_advisory_channels")
-    adv_channels = smt.errata_applicabletochannels(cve, False)
+    adv_channels = smt.errata_applicabletochannels(errata, False)
     channels = []
     for source in adv_channels:
         channels.append(source.get('label'))
     smt.log_debug("Finished get_advisory_channels")
     return channels
 
-def get_cve_packages(cve):
+def get_errata_packages(errata):
     """
     Retrieve the list of package IDs associated with a specific CVE.
 
@@ -76,22 +77,82 @@ def get_cve_packages(cve):
     the `smt.errata_listpackages` function. It then processes the result to
     extract and return only the package IDs.
 
-    :param cve: The Common Vulnerabilities and Exposures (CVE) ID for which
+    :param errata: The Common Vulnerabilities and Exposures (CVE) ID for which
         associated package IDs are to be retrieved.
-    :type cve: str
+    :type errata: str
     :return: A list of package IDs associated with the provided CVE.
     :rtype: list
     """
     smt.log_debug("Start get_cve_packages")
-    cve_packages = smt.errata_listpackages(cve)
+    cve_packages = smt.errata_listpackages(errata)
     packages = []
     for cve_package in cve_packages:
         packages.append(cve_package.get('id'))
     smt.log_debug("Finished get_cve_packages")
     return packages
 
+def get_all_packages(channel):
+    """
+    Retrieve all non-retracted packages from a given channel.
 
-def add_cve_channels(project, env, cve):
+    The function fetches a list of packages associated with the provided channel
+    using the `smt.channel_software_listallpackages` method. It processes the package details
+    to exclude any retracted packages and formats the remaining package information
+    into a list of dictionaries, where each dictionary contains the package ID and its
+    formatted name. The formatted name is constructed from package name, version, release,
+    and architecture label.
+
+    :param channel: The name of the channel to retrieve packages from
+    :type channel: str
+    :return: A list of dictionaries with keys "id" and "name" for each non-retracted package
+    :rtype: list[dict]
+    """
+    smt.log_debug("Start get_all_packages")
+    packages_info = smt.channel_software_listallpackages(channel)
+    packages = []
+    for package in packages_info:
+
+        if not package.get('retracted'):
+            pack_info = {"id": package.get('id'),
+                         "name": f"{package.get('name')}-{package.get('version')}-{package.get('release')}.{package.get('arch_label')}"}
+            packages.append(pack_info)
+    smt.log_debug("Finished get_all_packages")
+    return packages
+
+def do_add_packages(project, env, packages):
+    """
+    Adds specified packages to a project environment by identifying them in
+    available project channels. If a package is not found, logs an error
+    indicating the missing package.
+
+    :param project: Name of the project to which the packages are being added
+    :type project: str
+    :param env: The environment within the project where the packages need
+        to be added
+    :type env: str
+    :param packages: List of package names to be added to the project
+    :type packages: list[str]
+    :return: None
+    """
+    smt.log_debug("Start do_add_packages")
+    project_channels = get_project_source_labels(project)
+    packages_found = []
+    for project_channel in project_channels:
+        smt.log_debug(f"project_channel: {project_channel}")
+        all_packages = get_all_packages(project_channel)
+        add_package_ids = []
+        for package in packages:
+            for available_package in all_packages:
+                if package == available_package.get('name'):
+                    add_package_ids.append(available_package.get('id'))
+                    packages_found.append(package)
+        smt.channel_software_addpackages(f"{project}-{env}-{project_channel}", add_package_ids)
+    for package in packages:
+        if package not in packages_found:
+            smt.log_error(f"package {package} not found in any channel. Not present or name is wrong. Skipping")
+    smt.log_debug("Finished do_add_packages")
+
+def add_errata_channels(project, env, advisory):
     """
     Adds CVE (Common Vulnerabilities and Exposures) to the appropriate software channels.
 
@@ -104,69 +165,81 @@ def add_cve_channels(project, env, cve):
     :type project: str
     :param env: The environment name (e.g., production, staging) to distinguish channels.
     :type env: str
-    :param cve: The identifier for the Common Vulnerability and Exposure to be added to channels.
-    :type cve: str
+    :param advisory: The identifier for the Common Vulnerability and Exposure to be added to channels.
+    :type advisory: str
     :return: None
     """
     smt.log_debug("Start add_cve_channels")
     project_channels = get_project_source_labels(project)
-    advisory_channels = get_advisory_channels(cve)
+    advisory_channels = get_advisory_channels(advisory)
     for project_channel in project_channels:
             channel_to_clone = f"{project}-{env}-{project_channel}"
             if channel_to_clone in advisory_channels:
                 smt.log_info(f"CVE is already in channel {channel_to_clone}")
                 continue
             if project_channel in advisory_channels:
-                cves= [cve]
-                results = smt.errata_clone(channel_to_clone, cves)
+                advisories= [advisory]
+                results = smt.errata_clone(channel_to_clone, advisories)
                 for result in results:
-                    packages = get_cve_packages(result.get('advisory_name'))
+                    packages = get_errata_packages(result.get('advisory_name'))
                     smt.channel_software_addpackages(channel_to_clone, packages)
                     smt.log_debug(f"packages: {packages}")
                 smt.channel_software_regenerateyumcache(channel_to_clone)
                 smt.log_info(f"CVE added to channel {channel_to_clone}")
     smt.log_debug("Finished add_cve_channels")
 
-def do_add_cves(project_info, cves):
+def do_add_errata(project_info, errata):
     """
-    Executes the addition of CVE (Common Vulnerabilities and Exposures) entries to the
-    specified project by calling the necessary routines for each CVE in the provided list.
-    Logs the start and end of the operation for debugging purposes.
+    Adds errata (Common Vulnerabilities and Exposures) to specified project
+    information by associating them with appropriate channels.
 
-    :param project_info: Contains information about the project to which the CVEs will be
-        added.
+    This function iterates through the provided `errata` list and ties each
+    CVEs (Common Vulnerabilities and Exposures) to its respective project
+    label and first environment. It logs the process start and completion for
+    debugging purposes.
+
+    :param project_info: A dictionary containing project details, which includes
+        the `label` (project label) and `firstEnvironment` (environment in which
+        the project operates).
     :type project_info: dict
-    :param cves: List of CVE identifiers to be processed and added to the specified
-        project.
-    :type cves: list
+    :param errata: A list of CVE identifiers to be added to the project channels.
+    :type errata: list
     :return: None
     """
     smt.log_debug("Start do_add_cves")
-    for cve in cves:
-        add_cve_channels(project_info.get('label'), project_info.get('firstEnvironment'), cve)
+    for cve in errata:
+        add_errata_channels(project_info.get('label'), project_info.get('firstEnvironment'), cve)
     smt.log_debug("Finished do_add_cves")
 
-def perform_update(project, cves):
+def perform_update(project, args):
     """
-    Performs an update on the given project by retrieving its environment details
-    and adding CVE channels to each environment.
+    Performs updates for a given project within specified environments. The function retrieves
+    the project details and iterates through its environments. It processes CVEs and advisories
+    if specified in the arguments and applies packages and advisories to the environment.
 
-    This function processes the project's environments and adds the given list of
-    CVE channels to each identified environment. Debug logs are generated at the
-    start and at the completion of the operation.
+    :param project: The project for which updates need to be performed.
+    :type project: Any
 
-    :param project: The name or identifier of the project to update.
-    :type project: str
-    :param cves: A list of CVEs to be added to the project's environments.
-    :type cves: list
+    :param args: Command-line arguments or parameters containing options for updates. This
+                 can include CVEs, advisories, or packages to be added.
+    :type args: Any
+
     :return: None
     """
     smt.log_debug("Start perform_update")
     project_details = smt.contentmanagement_listprojectenvironment(project)
     for environment_details in project_details:
         env = environment_details.get('label')
-        for cve in cves:
-            add_cve_channels(project, env, cve)
+        cves = advs = []
+        if args.cve:
+            cves = get_cves(args.cve)
+        if args.advisory:
+            advs = get_advisory(args.advisory)
+        advisories = advs + cves
+        if args.package:
+            do_add_packages(project, env, args.package)
+        for advisory in advisories:
+            add_errata_channels(project, env, advisory)
     smt.log_debug("Finished perform_update")
 
 def perform_promote(project):
@@ -255,38 +328,46 @@ def promote_environment(project, source_env, target_env):
     sync_completed(target_env, project, True)
     smt.log_debug("Finished update_environment")
 
-def check_arguments(args):
+def get_advisory(advisory_list):
     """
-    Checks the provided arguments for validity, including the existence of the project
-    and associated CVEs (Common Vulnerabilities and Exposures).
+    Retrieves a list of valid advisories from the provided advisory identifiers.
 
-    The function verifies:
-    1. If the specified project exists.
-    2. If each provided CVE is associated with valid information.
+    This function takes a list of advisory identifiers, checks their details,
+    and filters out the invalid ones. It performs this by utilizing an external
+    method to fetch detailed information about each advisory. If details are
+    successfully retrieved for an advisory, it is considered valid and appended
+    to the resulting list. Otherwise, a warning is logged, and the advisory is
+    skipped.
 
-    If a project is not found or no valid CVEs are provided, the function terminates
-    the execution with a logged error.
-
-    :param args: The input arguments containing the project name and the list of CVEs.
-    :type args: Namespace
-    :return: A tuple containing the project information and a list of valid CVEs if all
-             are valid; otherwise, terminates execution with an error.
-    :rtype: Tuple[Any, List[Any]]
+    :param advisory_list: A list of advisory identifiers to be validated.
+    :type advisory_list: list
+    :return: A list of valid advisory identifiers for which details were found.
+    :rtype: list
     """
-    smt.log_debug("Start check_arguments")
+    smt.log_debug("Start get_advisory")
+    advisories = []
+    for advisory in advisory_list:
+        advisory_info = smt.errata_getdetails(advisory,False)
+        if advisory_info:
+            advisories.append(advisory)
+        else:
+            smt.log_warning(f"Advisory {advisory} doesn't exists. Skipping")
+    return advisories
 
-    # check if project exists
-    project_present = smt.contentmanagement_lookupproject(args.project)
-    if not project_present:
-        smt.log_error(f"Project {args.project} doesn't exists. Aborting operation")
-        sys.exit(1)
-    if args.promote and args.update:
-        smt.log_error(f"The options --promote and --update can not be used together. Aborting operation")
-        sys.exit(1)
+def get_cves(cve_list):
+    """
+    Retrieves a list of advisory names associated with the provided list of CVEs. Each CVE is queried
+    to gather associated advisories, and the advisory names are appended to the result. If no valid
+    advisory names are found, the operation is aborted with an error.
 
-    # check if CVE exists
+    :param cve_list: List of CVE identifiers to search for associated advisories
+    :type cve_list: list
+    :return: List of advisory names found for the CVEs
+    :rtype: list
+    """
+    smt.log_debug("Start get_cves")
     cves = []
-    for cve in args.cve:
+    for cve in cve_list:
         cve_infos = smt.errata_findbycve(cve,False)
         if cve_infos:
             for cve_info in cve_infos:
@@ -294,29 +375,55 @@ def check_arguments(args):
         else:
             smt.log_warning(f"CVE {cve} doesn't exists. Skipping")
     if cves:
-        smt.log_debug("Finished check_arguments")
-        return project_present, cves
+        smt.log_debug("Finished get_cves")
+        return cves
     else:
         smt.log_error(f"No valid CVEs found. Aborting operation")
         sys.exit(1)
 
+def check_arguments(args):
+    """
+    Checks the validity of the input arguments and ensures required conditions are met.
+
+    :param args: The parsed arguments provided by the user (e.g., via command line).
+    :type args: Namespace
+    :return: A boolean indicating whether the specified project exists.
+    :rtype: bool
+    """
+    smt.log_debug("Start check_arguments")
+
+    # check if the project exists
+    project_present = smt.contentmanagement_lookupproject(args.project)
+    if not project_present:
+        smt.log_error(f"Project {args.project} doesn't exists. Aborting operation")
+        sys.exit(1)
+    if args.promote and args.update:
+        smt.log_error(f"The options --promote and --update can not be used together. Aborting operation")
+        sys.exit(1)
+    if not args.cve and not args.advisory and not args.package:
+        smt.log_error(f"At least on of the options --cve, --advisory or --package has to be given. Aborting operation")
+        sys.exit(1)
+    smt.log_debug("Finished check_arguments")
+    # check if CVE exists
+    return project_present
+
+
 def main():
     """
-    This script adds a CVE to the first stage of a specified project. It provides options
-    to update or promote other environments of the project. It uses the SMTools to manage
-    and log activities.
+    Main entry point for the script `add_cve_to_project.py`.
 
-    :raises argparse.ArgumentError: If required arguments are not provided.
+    This script facilitates adding a CVE (Common Vulnerabilities and Exposures) to the
+    first stage of a specified project. It provides options to include advisories,
+    packages, and additional configurations such as updating or promoting all other
+    environments of the project.
 
-    :param -p --project: The name of the project where the CVE will be added.
-    :param -c --cve: The CVE Number(s). This option can be used multiple times.
-    :param -u --update: A flag to update all other environments of the project.
-    :param -p --promote: A flag to promote all other environments of the project.
-    :param --version: Displays the version of the script.
-    :type -p --project: str
-    :type -c --cve: list of str
-    :type -u --update: bool
-    :type -p --promote: bool
+    :raises SystemExit: Raised when parsing invalid arguments or when help/version
+        is requested.
+    :raises Exception: Raised if any internal process (logging in, updating, or
+        promoting the project) encounters an error.
+
+    :param args Namespace: Parsed command-line arguments that include project name,
+        CVEs, advisories, packages, update flag, and promote flag.
 
     :return: None
     """
@@ -332,25 +439,36 @@ def main():
     parser.add_argument("-p", "--project", help="name of project where the CVE has to be added",
                         required=True)
     parser.add_argument("-c", "--cve", action="append",
-                        help="The CVE Number. This option can be used multuple times", required=True)
+                        help="The CVE Number. This option can be used multiple times")
+    parser.add_argument("-a", "--advisory", action="append",
+                        help="Add an advisory. This option can be used multiple times")
+    parser.add_argument("-g", "--package", action="append",
+                        help="Add a package. This option can be used multiple times")
     parser.add_argument("-u", "--update", action="store_true", default=0,
                         help="Update all other environments of the project")
     parser.add_argument("-r", "--promote", action="store_true", default=0,
                         help="Promote all other environments of the project")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, November 17, 2025')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.0.1, November 19, 2025')
     args = parser.parse_args()
     smt.log_info("Start")
     smt.log_debug("Given options: {}".format(args))
     smt.suman_login()
-    project_info, cves = check_arguments(args)
-    smt.log_info(f"Project {project_info}")
-    smt.log_info(f"Add CVEs: {cves}")
+    project_info = check_arguments(args)
     if args.update:
-        perform_update(args.project, cves)
+        perform_update(args.project, args)
     else:
-        do_add_cves(project_info, cves)
+        cves = advs = []
+        if args.cve:
+            cves = get_cves(args.cve)
+        if args.advisory:
+            advs = get_advisory(args.advisory)
+        advisories = advs + cves
+        if args.package:
+            do_add_packages(project_info.get('label'), project_info.get('firstEnvironment'), args.package)
+        if advisories:
+            do_add_errata(project_info, cves)
     if args.promote:
-        perform_promote(args.project)
+            perform_promote(args.project)
     smt.close_program()
 
 

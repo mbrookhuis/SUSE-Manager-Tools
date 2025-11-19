@@ -942,15 +942,15 @@ class SMTools:
             self.log_debug("Error: \n{}".format(err))
             self.minor_error('Unable to get errata for channel {}.'.format(clone_channel))
 
-    def channel_software_mergeerrata_cve(self, parent_channel, clone_channel, cves):
+    def channel_software_mergeerrata_cve(self, parent_channel, clone_channel, errata_names):
         try:
-            return self.client.channel.software.mergeErrata(self.session, parent_channel, clone_channel, cves)
+            return self.client.channel.software.mergeErrata(self.session, parent_channel, clone_channel, errata_names)
         except xmlrpc.client.Fault as err:
             self.log_debug('api-call: channel.software.mergeErrata')
             self.log_debug('Value passed: ')
             self.log_debug(f'  parent_channel: {parent_channel}')
             self.log_debug(f'  clone_channel:  {clone_channel}')
-            self.log_debug(f'  advisory_names: {cves}')
+            self.log_debug(f'  advisory_names: {errata_names}')
             self.log_debug(f"Error: \n{err}")
             self.fatal_error(f'Unable to get errata for channel {clone_channel}.')
 
@@ -1022,6 +1022,22 @@ class SMTools:
             self.log_debug(f"  force:      {force})")
             self.log_debug(f"Error: \n{err}")
             self.fatal_error(message)
+
+    def channel_software_listallpackages(self, channel, fatal_error=True):
+        try:
+            return self.client.channel.software.listAllPackages(self.session, channel)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to get a list of package for channel {channel}. The error is: \n{err}'
+            if fatal_error:
+                self.log_debug('api-call: channel.software.listAllPackages')
+                self.log_debug('Value passed: ')
+                self.log_debug(f'  channel:    {channel}')
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(message)
+            else:
+                self.log_debug(message)
+                return []
+
 
     def get_labels_all_basechannels(self):
         all_channels = None
@@ -1718,36 +1734,72 @@ class SMTools:
             self.log_debug(f"Error: \n{err}")
             self.fatal_error(message)
 
-    def errata_listpackages(self, cve):
+    def errata_listpackages(self, errata):
         """
         Retrieve a list of packages associated with a given CVE (Common Vulnerabilities and Exposures)
         identifier. This function interfaces with an external client, handling potential
         errors in the process.
 
-        :param cve: The CVE identifier for which package information is requested.
-        :type cve: str
+        :param errata: The CVE identifier for which package information is requested.
+        :type errata: str
         :return: A list of packages associated with the specified CVE.
         :rtype: list
         :raises xmlrpc.client.Fault: If the external client raises a fault during the API call.
         """
         try:
-            return self.client.errata.listPackages(self.session, cve)
+            return self.client.errata.listPackages(self.session, errata)
         except xmlrpc.client.Fault as err:
-            message = f'Unable to find packages for {cve}. The error is: \n{err}'
+            message = f'Unable to find packages for {errata}. The error is: \n{err}'
             self.log_debug('api-call: errata.listPackages')
             self.log_debug('Value passed: ')
-            self.log_debug(f'  advisory_name:      {cve}')
+            self.log_debug(f'  advisory_name:      {errata}')
             self.log_debug(f"Error: \n{err}")
             self.fatal_error(message)
 
-    def errata_addpackages(self, cve, packages):
+    def errata_addpackages(self, errata, packages):
         try:
-            return self.client.errata.addPackages(self.session, cve, packages)
+            return self.client.errata.addPackages(self.session, errata, packages)
         except xmlrpc.client.Fault as err:
-            message = f'Unable to find packages for {cve}. The error is: \n{err}'
+            message = f'Unable to find packages for {errata}. The error is: \n{err}'
             self.log_debug('api-call: errata.addPackages')
             self.log_debug('Value passed: ')
-            self.log_debug(f'  advisory_name:      {cve}')
+
+            self.log_debug(f'  advisory_name:      {errata}')
             self.log_debug(f"  packages:           {packages})")
             self.log_debug(f"Error: \n{err}")
             self.fatal_error(message)
+
+    def errata_getdetails(self, errata, fatal_error=True):
+        try:
+            return self.client.errata.addPackages(self.session, errata)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to find details for {errata}. The error is: \n{err}'
+            if fatal_error:
+                self.log_debug('api-call: errata.details')
+                self.log_debug('Value passed: ')
+                self.log_debug(f'  advisory_name:      {errata}')
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(message)
+            else:
+                self.log_warning(message)
+                return []
+
+    """
+    API call related to packages
+    """
+
+    def package_search_name(self, package, fatal_error=True):
+        try:
+            return self.client.packages.search.name(self.session, package)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to find details for {package}. The error is: \n{err}'
+            if fatal_error:
+                self.log_debug('api-call: packages.search.name')
+                self.log_debug('Value passed: ')
+                self.log_debug(f'  package:      {package}')
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(message)
+            else:
+                self.log_warning(message)
+                return []
+

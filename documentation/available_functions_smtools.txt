@@ -63,6 +63,7 @@ channel_software_createrepo(self, channel, ch_type, ch_url, no_fatal=False)
 channel_software_createrepo_cert(self, channel, ch_type, ch_url, ch_ca, ch_cert, ch_key, no_fatal=False)
 channel_software_getdetails(self, channel, no_fatal=False)
 channel_software_getrepodetails(self, channel, no_fatal=False)
+channel_software_listallpackages(self, channel, fatal_error=True)
 channel_software_listchildren(self, channel)
 channel_software_listsubscribedsystems(self, channel)
 channel_software_mergeerrata(self, parent_channel, clone_channel)
@@ -135,4 +136,9 @@ errata
 errata_applicabletochannels(self, ad_name, fatal_error=True)
 errata_clone(self, channel, ad_names)
 errata_findbycve(self, cve, fatal_error=True)
+errata_getdetails(self, errata, fatal_error=True)
 errata_listpackages(self, cve)
+
+package
+-------
+package_search_name(self, package, fatal_error=True)

@@ -141,7 +141,7 @@ def create_activation_key(project, env):
             parent_channel = channel.get('channelLabel')
         else:
             child_channels.append(channel.get('channelLabel'))
-    smt.activationkey_create_vh(key_name, key_name, False)
+    smt.activationkey_create_vh(key_name, key_name, parent_channel, False)
     smt.activationkey_add_child_channels(key_id, child_channels)
     smt.log_info("Activation key created")
 

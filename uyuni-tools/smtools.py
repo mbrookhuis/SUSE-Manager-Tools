@@ -873,8 +873,8 @@ class SMTools:
 
     def channel_software_createrepo_cert(self, channel, ch_type, ch_url, ch_ca, ch_cert, ch_key, no_fatal=False):
         try:
-            return self.client.channel.software.getRepoDetail(self.session, channel, ch_type, ch_url, ch_ca, ch_cert,
-                                                              ch_key)
+            return self.client.channel.software.createRepo(self.session, channel, ch_type, ch_url, ch_ca, ch_cert,
+                                                            ch_key)
         except xmlrpc.client.Fault as err:
             if no_fatal:
                 return False
@@ -894,7 +894,7 @@ class SMTools:
 
     def channel_software_createrepo(self, channel, ch_type, ch_url, no_fatal=False):
         try:
-            return self.client.channel.software.getRepoDetail(self.session, channel, ch_type, ch_url)
+            return self.client.channel.software.createRepo(self.session, channel, ch_type, ch_url)
         except xmlrpc.client.Fault as err:
             if no_fatal:
                 return False
@@ -1802,4 +1802,63 @@ class SMTools:
             else:
                 self.log_warning(message)
                 return []
+
+
+    """
+    API call related to users
+    """
+    def user_create(self, login, first_name, last_name, email, password, fatal_error=True):
+        try:
+            return self.client.user.create(self.session, login, password, first_name, last_name, email)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to create use {login}. The error is: \n{err}'
+            if fatal_error:
+                self.log_debug('api-call: user.create')
+                self.log_debug('Value passed: ')
+                self.log_debug(f'  login:      {login}')
+                self.log_debug(f'  firstName:  {first_name}')
+                self.log_debug(f'  lastName:   {last_name}')
+                self.log_debug(f'  email:      {email}')
+                self.log_debug(f'  password:   xxxxxxxxx')
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(message)
+            else:
+                self.log_warning(message)
+                return []
+
+    def user_add_role(self, login, role, fatal_error=True):
+        try:
+            return self.client.user.addRole(self.session, login, role)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to addrole {role} to user {login}. The error is: \n{err}'
+            if fatal_error:
+                self.log_debug('api-call: user.addRole')
+                self.log_debug('Value passed: ')
+                self.log_debug(f'  login:      {login}')
+                self.log_debug(f'  role:       {role}')
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(message)
+            else:
+                self.log_warning(message)
+                return []
+
+    def user_add_assigned_system_groups(self, login, system_groups, fatal_error=True):
+        try:
+            return self.client.user.addAssignedSystemGroups(self.session, login, system_groups, True)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to add systemgroups to user {login}. The error is: \n{err}'
+            if fatal_error:
+                self.log_debug('api-call: user.addAssignedSystemGroups')
+                self.log_debug('Value passed: ')
+                self.log_debug(f'  login:      {login}')
+                self.log_debug(f'  sgNames:    {system_groups}')
+                self.log_debug(f"Error: \n{err}")
+                self.fatal_error(message)
+            else:
+                self.log_warning(message)
+                return []
+
+
+
+
 

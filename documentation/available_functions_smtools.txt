@@ -142,3 +142,9 @@ errata_listpackages(self, cve)
 package
 -------
 package_search_name(self, package, fatal_error=True)
+
+user
+----
+user_add_assigned_system_groups(self, login, system_groups, fatal_error=True)
+user_add_role(self, login, role, fatal_error=True)
+user_create(self, login, first_name, last_name, email, password, fatal_error=True)

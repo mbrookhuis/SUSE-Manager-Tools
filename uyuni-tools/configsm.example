@@ -21,8 +21,8 @@ dirs:
 monitoring:
   hostname: 127.0.0.1
   port: 5000
-  monitoring_system_update: True
-  monitoring_system_highstate: False
+  system_update: True
+  system_highstate: False
 
 loglevel:
    # LOGLEVELS:

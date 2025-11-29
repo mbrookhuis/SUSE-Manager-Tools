@@ -135,6 +135,12 @@ class SMTools:
         self.error_text += "\n"
         self.error_found = True
         self.log_error("{}".format(errtxt))
+        try:
+            system_update_monitoring = CONFIGSM['monitoring']['system_update']
+            if self.program == "system_update" and system_update_monitoring:
+                self.report_status(self.hostname, "error", "system_update", errtxt)
+        except KeyError:
+            self.log_debug("No monitoring configured for system_update")
         self.close_program(return_code)
 
     def log_info(self, errtxt):
@@ -343,22 +349,22 @@ class SMTools:
             message += "\nWrong option given {}. Should be fatal, error or warning. Assuming fatal"
             self.fatal_error(message)
 
-def report_status(self, hostname, status, service, comment=""):
-    """Sends a POST request to update or insert a host's status."""
-    BASE_URL = f"http://{CONFIGSM['database']['hostname']}:{CONFIGSM['database']['port']}/api"
-    payload = {
-        "hostname": hostname,
-        "status": status,
-        "service": service,
-        "comment": comment
-    }
-    try:
-        response = requests.post(f"{BASE_URL}/record", json=payload)
-        response.raise_for_status() # Raise an exception for bad status codes
-    except requests.exceptions.RequestException as e:
-        self.log_error(f"ERROR: Could not connect to service or bad response to report_status. Details: {e}")
-        if 'response' in locals() and response.json():
-            self.log_error(f"Server Detail: {response.json()}")
+    def report_status(self, hostname, status, service, comment=""):
+        """Sends a POST request to update or insert a host's status."""
+        BASE_URL = f"http://{CONFIGSM['database']['hostname']}:{CONFIGSM['database']['port']}/api"
+        payload = {
+            "hostname": hostname,
+            "status": status,
+            "service": service,
+            "comment": comment
+        }
+        try:
+            response = requests.post(f"{BASE_URL}/record", json=payload)
+            response.raise_for_status() # Raise an exception for bad status codes
+        except requests.exceptions.RequestException as e:
+            self.log_error(f"ERROR: Could not connect to service or bad response to report_status. Details: {e}")
+            if 'response' in locals() and response.json():
+                self.log_error(f"Server Detail: {response.json()}")
 
     """
     API call related to system

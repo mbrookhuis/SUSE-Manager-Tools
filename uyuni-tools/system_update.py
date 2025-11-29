@@ -21,6 +21,7 @@
 #                        - changed logging
 #                        - moved api calls to smtools.py
 # 2022-05-05 M.Brookhuis - added request for disabling dry-run in SPMIG.
+# 2025-11-29 M.Brookhuis - added monitoring
 #
 
 """
@@ -78,6 +79,7 @@ def do_upgrade(no_reboot, force_reboot):
     """
     do upgrade of packages
     """
+    update_status(smt.hostname, "running", "Upgrading packages")
     updateble_patches = smt.system_getrelevanterrata()
     if updateble_patches:
         do_update_minion(updateble_patches)
@@ -141,6 +143,7 @@ def do_spmigrate(new_basechannel, no_reboot, no_dryrun):
     """
     Perform a sp data for the given server
     """
+    update_status(smt.hostname, "running", "SP Migration started")
     checked_new_child_channels = []
     old_basechannel = smt.system_getsubscribedbasechannel()
     (migration_available, migration_targets) = check_spmigration_available()
@@ -190,7 +193,9 @@ def do_spmigrate(new_basechannel, no_reboot, no_dryrun):
         elif result_spmig and no_reboot:
             smt.log_info("Support Pack data completed successful, but server {} will not be rebooted. Please reboot manually ASAP.".format(smt.hostname))
         else:
-            smt.log_error("SP Migration failed. Please check logs.")
+            message = "SP Migration failed. Please check logs."
+            update_status(smt.hostname, "error", message)
+            smt.log_error(message)
         smt.system_schedulepackagerefresh(datetime.datetime.now())
         smt.system_schedulehardwarerefresh(datetime.datetime.now())
     else:
@@ -365,9 +370,13 @@ def update_server(args):
     start update process
     """
     if server_is_exception_update():
-        smt.fatal_error("Server {} is in list of exceptions and will not be updated.".format(args.server))
+        message = "Server {} is in list of exceptions and will not be updated.".format(args.server)
+        update_status(args.server, "error", message)
+        smt.fatal_error(message)
     if system_is_inactive():
-        smt.fatal_error("Server {} is inactive for at least a day. Please check. System will not be updated.".format(args.server))
+        message = "Server {} is inactive for at least a day. Please check. System will not be updated.".format(args.server)
+        update_status(args.server, "error", message)
+        smt.fatal_error(message)
     highstate_done = False
     if args.updatescript:
         highstate_done = do_update_script("begin")
@@ -403,13 +412,36 @@ def update_server(args):
         else:
             smt.log_error("The given script does not exist")
 
+def update_status(server, status, message):
+    """
+    Updates the status of a server by reporting it to the monitoring system.
+
+    The function is responsible for checking if the system update configuration
+    is enabled in the monitoring settings and, if enabled, reporting the provided
+    status of the server along with a message.
+
+    :param server: The server identifier whose status is being updated.
+    :type server: str
+    :param status: The status to report for the server (e.g., 'active', 'inactive').
+    :type status: str
+    :param message: Additional information or message related to the status update.
+    :type message: str
+    :return: None
+    """
+    try:
+        system_update_monitoring = CONFIGSM['monitoring']['system_update']
+        if system_update_monitoring:
+            smt.report_status(server, status, "system_update", message)
+    except KeyError:
+        smt.log_error("No monitoring configured for system_update")
+
 
 def main():
     """
     Main function
     """
+    global smt
     try:
-        global smt
         parser = argparse.ArgumentParser(description="Update the give system.")
         parser.add_argument('-s', '--server', help='name of the server to receive config update. Required')
         parser.add_argument("-n", "--noreboot", action="store_true", default=0,
@@ -437,12 +469,16 @@ def main():
         smt.log_debug(args)
         smt.suman_login()
         smt.set_hostname(args.server)
+        update_status(args.server, "running", "initializing")
         update_server(args)
         smt.close_program()
     except Exception as err:
+        message = "Error during system update: {}".format(err)
+        update_status(args.server, "error", message)
         smt.log_debug("general error:")
         smt.log_debug(err)
         raise
+    update_status(args.server, "finished", "update completed")
 
 if __name__ == "__main__":
     SystemExit(main())

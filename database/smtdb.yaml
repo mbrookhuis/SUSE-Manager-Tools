@@ -1,0 +1,11 @@
+database:
+  hostname: 127.0.0.1
+  port: 5000
+  name: smtdb.db
+  allowed_statuses:
+    - running
+    - error
+    - finished
+  allowed_services:
+    - system_update
+    - system_highstate

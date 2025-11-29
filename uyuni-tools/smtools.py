@@ -24,6 +24,7 @@
 """
 This library contains functions used in other modules
 """
+import json
 import ssl
 from email.mime.text import MIMEText
 import xmlrpc.client
@@ -33,6 +34,8 @@ import sys
 import datetime
 import smtplib
 import socket
+
+import requests
 import yaml
 import time
 
@@ -257,24 +260,6 @@ class SMTools:
             except:
                 self.fatal_error("Unable to login to SUSE Manager server {} XMLRPC".format(CONFIGSM['suman']['server']))
 
-    '''
-        def suman_login(self):
-            """
-            Log in to SUSE Manager Server.
-            """
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            try:
-                sock.connect_ex((CONFIGSM['suman']['server'], 443))
-            except:
-                self.fatal_error("Unable to login to SUSE Manager server {}".format(CONFIGSM['suman']['server']))
-    
-            self.client = xmlrpc.client.Server("https://" + CONFIGSM['suman']['server'] + "/rpc/api")
-            try:
-                self.session = self.client.auth.login(CONFIGSM['suman']['user'], CONFIGSM['suman']['password'])
-            except xmlrpc.client.Fault:
-                self.fatal_error("Unable to login to SUSE Manager server {}".format(CONFIGSM['suman']['server']))
-    '''
-
     def suman_logout(self):
         """
         Logout from SUSE Manager Server.
@@ -319,38 +304,6 @@ class SMTools:
         self.systemid = system_id
         return system_id
 
-    '''
-    def event_status(self, action_id):
-        """
-        Check status of event
-        """
-        for result in self.system_listsystemevents():
-            if result.get('id') == action_id:
-                return result.get('failed_count'), result.get('successful_count'), result.get('result_msg')
-        self.fatal_error("System {} is not having a event ID. Aborting!".format(self.hostname))
-
-    def check_progress(self, action_id, timeout, action):
-        """
-        Check progress of action
-        """
-        (failed_count, completed_count, result_message) = self.event_status(action_id)
-        end_time = datetime.datetime.now() + datetime.timedelta(0, timeout)
-        try:
-            wait_time = CONFIGSM['maintenance']['wait_between_events_check']
-        except:
-            wait_time = 15
-            self.minor_error("Please set value for maintenance | wait_between_events_check")
-        while failed_count == 0 and completed_count == 0:
-            if datetime.datetime.now() > end_time:
-                message = "Action '{}' run in timeout. Please check server {}.".format(action, self.hostname)
-                self.error_handling('timeout_passed', message)
-                return 1, 0, message
-            (failed_count, completed_count, result_message) = self.event_status(action_id)
-            self.log_info("Still Running")
-            time.sleep(wait_time)
-        return failed_count, completed_count, result_message
-    '''
-
     def check_progress(self, action_id, timeout, action):
         """
         Check progress of action
@@ -389,6 +342,23 @@ class SMTools:
         else:
             message += "\nWrong option given {}. Should be fatal, error or warning. Assuming fatal"
             self.fatal_error(message)
+
+def report_status(self, hostname, status, service, comment=""):
+    """Sends a POST request to update or insert a host's status."""
+    BASE_URL = f"http://{CONFIGSM['database']['hostname']}:{CONFIGSM['database']['port']}/api"
+    payload = {
+        "hostname": hostname,
+        "status": status,
+        "service": service,
+        "comment": comment
+    }
+    try:
+        response = requests.post(f"{BASE_URL}/record", json=payload)
+        response.raise_for_status() # Raise an exception for bad status codes
+    except requests.exceptions.RequestException as e:
+        self.log_error(f"ERROR: Could not connect to service or bad response to report_status. Details: {e}")
+        if 'response' in locals() and response.json():
+            self.log_error(f"Server Detail: {response.json()}")
 
     """
     API call related to system

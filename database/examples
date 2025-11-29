@@ -1,0 +1,65 @@
+zypper in sqlite3 python3-Flask python3-PyYAML
+sqlite3 smtdb.db < smtdb_schema.sql
+
+
+
+
+
+# Record 1: System Update, Running
+curl -X POST http://127.0.0.1:5000/record -H "Content-Type: application/json" -d '{
+    "hostname": "webserver-01",
+    "status": "running",
+    "service": "system_update",
+    "comment": "Applying patches now"
+}'
+
+# Record 2: Highstate, Finished
+curl -X POST http://127.0.0.1:5000/record -H "Content-Type: application/json" -d '{
+    "hostname": "db-prod-02",
+    "status": "finished",
+    "service": "system_highstate",
+    "comment": "Highstate applied successfully"
+}'
+
+# Record 3: Error
+curl -X POST http://127.0.0.1:5000/record -H "Content-Type: application/json" -d '{
+    "hostname": "staging-03",
+    "status": "error",
+    "service": "system_update",
+    "comment": "Package dependency conflict"
+}'
+
+#### 2. Get Status (GET to `/status`)
+
+**A. Get All Records (JSON default):**
+```bash
+curl http://127.0.0.1:5000/status
+
+**B. Get All Running Hosts (Text output):**
+```bash
+curl "http://127.0.0.1:5000/status?status=running&output=text"
+
+**C. Get Specific Hostname (JSON):**
+```bash
+curl "http://127.0.0.1:5000/status?hostname=db-prod-02"
+
+**D. Get Hosts with Wildcard (Raw/CSV output):**
+```bash
+# Finds hosts starting with 'web' (like 'webserver-01')
+curl "http://127.0.0.1:5000/status?hostname=web*&output=raw"
+
+#### 3. Delete Records (DELETE to `/records`)
+
+**A. Delete All Error Records:**
+```bash
+curl -X DELETE "http://127.0.0.1:5000/records?status=error"
+
+**B. Delete a Specific Host:**
+```bash
+curl -X DELETE "http://127.0.0.1:5000/records?hostname=db-prod-02"
+
+**C. Delete All Records (No filters):**
+```bash
+curl -X DELETE http://127.0.0.1:5000/records
+
+This service is now fully persistent, re-using the `smtdb.db` file across restarts, and supports all the requested client and admin operations. Let me know if you'd like to dive deeper into any of the functionality or want to modify the fields!

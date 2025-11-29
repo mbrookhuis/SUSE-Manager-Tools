@@ -1,0 +1,6 @@
+[Unit]
+Description="SUSE Manager Tools database"
+
+[Service]
+ExecStart=/opt/uyuni-tools/database/smtdb.py
+WorkingDirectory=/opt/uyuni-tools/database/

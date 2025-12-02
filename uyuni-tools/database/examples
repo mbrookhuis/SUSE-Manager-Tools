@@ -1,8 +1,4 @@
 zypper in sqlite3 python3-Flask python3-PyYAML
-sqlite3 smtdb.db < smtdb_schema.sql
-
-
-
 
 
 # Record 1: System Update, Running

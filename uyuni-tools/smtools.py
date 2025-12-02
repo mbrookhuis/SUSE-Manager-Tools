@@ -351,7 +351,7 @@ class SMTools:
 
     def report_status(self, hostname, status, service, comment=""):
         """Sends a POST request to update or insert a host's status."""
-        BASE_URL = f"http://{CONFIGSM['database']['hostname']}:{CONFIGSM['database']['port']}/api"
+        BASE_URL = f"http://{CONFIGSM['monitoring']['hostname']}:{CONFIGSM['monitoring']['port']}/"
         payload = {
             "hostname": hostname,
             "status": status,

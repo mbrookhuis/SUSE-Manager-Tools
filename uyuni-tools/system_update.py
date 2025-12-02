@@ -133,8 +133,10 @@ def do_upgrade(no_reboot, force_reboot):
     if force_reboot:
         smt.log_debug("Option force_reboot given")
     if not no_reboot and reboot_needed_package and reboot_needed_errata:
+        update_status(smt.hostname, "running", "Performing reboot")
         smt.system_schedulereboot(datetime.datetime.now())
         time.sleep(30)
+        update_status(smt.hostname, "running", "Reboot completed")
     smt.system_schedulehardwarerefresh(datetime.datetime.now(), True)
     return
 
@@ -189,7 +191,9 @@ def do_spmigrate(new_basechannel, no_reboot, no_dryrun):
             result_spmig = smt.system_schedulespmigration(spident, new_basechannel, checked_new_child_channels, False, datetime.datetime.now(), "SupportPack Migration")
         if result_spmig and not no_reboot:
             smt.log_info("Support Pack data completed successful, rebooting server {}".format(smt.hostname))
+            update_status(smt.hostname, "running", "Performing reboot")
             smt.system_schedulereboot(datetime.datetime.now())
+            update_status(smt.hostname, "running", "Reboot completed")
         elif result_spmig and no_reboot:
             smt.log_info("Support Pack data completed successful, but server {} will not be rebooted. Please reboot manually ASAP.".format(smt.hostname))
         else:
@@ -357,6 +361,7 @@ def do_update_script(phase):
         list_systems = [smt.systemid]
         smt.system_config_addchannels(list_systems, list_channel)
         smt.log_info("Performing high state for {} state channels".format(phase))
+        update_status(smt.hostname, "running", "Performing highstate")
         smt.system_scheduleapplyhighstate(xmlrpc.client.DateTime(datetime.datetime.now()))
         smt.system_config_removechannels(list_systems, list_channel)
         return True
@@ -382,6 +387,7 @@ def update_server(args):
         highstate_done = do_update_script("begin")
     if args.applyconfig and not highstate_done:
         if smt.system_getdetails().get('base_entitlement') == "salt_entitled":
+            update_status(smt.hostname, "running", "Performing highstate")
             smt.system_scheduleapplyhighstate(xmlrpc.client.DateTime(datetime.datetime.now()))
     (do_spm, new_basechannel) = check_for_sp_migration()
     if do_spm:
@@ -395,6 +401,7 @@ def update_server(args):
         highstate_done = do_update_script("end")
     if args.applyconfig and not highstate_done:
         if smt.system_getdetails().get('base_entitlement') == "salt_entitled":
+            update_status(smt.hostname, "running", "Performing highstate")
             smt.system_scheduleapplyhighstate(xmlrpc.client.DateTime(datetime.datetime.now()))
     if args.post_script:
         smt.log_info("Executing script {}".format(args.post_script))
@@ -429,7 +436,7 @@ def update_status(server, status, message):
     :return: None
     """
     try:
-        system_update_monitoring = CONFIGSM['monitoring']['system_update']
+        system_update_monitoring = smtools.CONFIGSM['monitoring']['monitoring_system_update']
         if system_update_monitoring:
             smt.report_status(server, status, "system_update", message)
     except KeyError:
@@ -455,7 +462,7 @@ def main():
         parser.add_argument("-u", "--updatescript", action="store_true", default=0,
                             help="Execute the server specific _start and _end scripts")
         parser.add_argument("-p", "--post_script", help="Execute given script on the SUSE Manger Server when system_update has finished")
-        parser.add_argument('--version', action='version', version='%(prog)s 2.0.0, June 29, 2020')
+        parser.add_argument('--version', action='version', version='%(prog)s 2.0.1, December 2, 2025')
         args = parser.parse_args()
         if not args.server:
             smt = smtools.SMTools("system_update")
@@ -471,6 +478,7 @@ def main():
         smt.set_hostname(args.server)
         update_status(args.server, "running", "initializing")
         update_server(args)
+        update_status(args.server, "finished", "update completed")
         smt.close_program()
     except Exception as err:
         message = "Error during system update: {}".format(err)

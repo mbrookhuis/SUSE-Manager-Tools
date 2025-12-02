@@ -15,12 +15,13 @@
 #
 import os
 import sqlite3
+import re
+import json
 import sys
 from datetime import datetime
 
 import yaml
 from flask import Flask, request, jsonify, g
-
 
 def load_yaml(stream):
     """
@@ -64,7 +65,7 @@ def get_db():
     return db
 
 @app.teardown_appcontext
-def close_connection():
+def close_connection(exception):
     """Closes the database connection at the end of the request."""
     db = getattr(g, '_database', None)
     if db is not None:
@@ -156,8 +157,8 @@ def submit_record():
         # Use INSERT OR REPLACE to achieve the required upsert/update logic
         # If hostname exists, the old record is replaced entirely.
         db.execute("""
-            INSERT OR REPLACE INTO status_records 
-            (hostname, timestamp, status, service, comment) 
+            INSERT OR REPLACE INTO status_records
+            (hostname, timestamp, status, service, comment)
             VALUES (?, ?, ?, ?, ?)
         """, (hostname, timestamp, status, service, comment))
         db.commit()

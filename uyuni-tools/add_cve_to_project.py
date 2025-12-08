@@ -69,7 +69,7 @@ def get_advisory_channels(errata):
     smt.log_debug("Finished get_advisory_channels")
     return channels
 
-def get_errata_packages(errata):
+def get_errata_packages(errata, arch_label):
     """
     Retrieve the list of package IDs associated with a specific CVE.
 
@@ -87,7 +87,8 @@ def get_errata_packages(errata):
     cve_packages = smt.errata_listpackages(errata)
     packages = []
     for cve_package in cve_packages:
-        packages.append(cve_package.get('id'))
+        if cve_package.get('arch_label') == arch_label:
+            packages.append(cve_package.get('id'))
     smt.log_debug("Finished get_cve_packages")
     return packages
 
@@ -174,6 +175,18 @@ def add_errata_channels(project, env, advisory):
     advisory_channels = get_advisory_channels(advisory)
     for project_channel in project_channels:
             channel_to_clone = f"{project}-{env}-{project_channel}"
+            if "x86_64" in project_channel:
+                arch_label = "x86_64"
+            elif "aarch64" in project_channel:
+                arch_label = "aarch64"
+            elif "ppc64le" in project_channel:
+                arch_label = "ppc64le"
+            elif "s390x" in project_channel:
+                arch_label = "s390x"
+            elif "amd64" in project_channel:
+                arch_label = "x86_64"
+            else:
+                arch_label = "noarch"
             if channel_to_clone in advisory_channels:
                 smt.log_info(f"CVE is already in channel {channel_to_clone}")
                 continue
@@ -181,7 +194,7 @@ def add_errata_channels(project, env, advisory):
                 advisories= [advisory]
                 results = smt.errata_clone(channel_to_clone, advisories)
                 for result in results:
-                    packages = get_errata_packages(result.get('advisory_name'))
+                    packages = get_errata_packages(result.get('advisory_name'), arch_label)
                     smt.channel_software_addpackages(channel_to_clone, packages)
                     smt.log_debug(f"packages: {packages}")
                 smt.channel_software_regenerateyumcache(channel_to_clone)
@@ -448,7 +461,7 @@ def main():
                         help="Update all other environments of the project")
     parser.add_argument("-r", "--promote", action="store_true", default=0,
                         help="Promote all other environments of the project")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.0.1, November 19, 2025')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.0.2, December 8, 2025')
     args = parser.parse_args()
     smt.log_info("Start")
     smt.log_debug("Given options: {}".format(args))
@@ -466,7 +479,7 @@ def main():
         if args.package:
             do_add_packages(project_info.get('label'), project_info.get('firstEnvironment'), args.package)
         if advisories:
-            do_add_errata(project_info, cves)
+            do_add_errata(project_info, advisories)
     if args.promote:
             perform_promote(args.project)
     smt.close_program()

@@ -6,7 +6,7 @@ If no --update or --promote option is used the script will only add the CVEs to 
 
 Arguments:
 * -h, --help → show this help message and exit
-* -p PROJECT, --project PROJECT → name of the project to be created. Required
+* -p PROJECT, --project PROJECT → name of the CLM project where the CVE, patch or package has to be added. Required
 * -c CVE, --cve CVE → The CVE Number. This option can be used multiple times.
 * -a ADVISORY, --advisory ADVISORY  → Add an advisory. This option can be used multiple times
 * -g PACKAGE, --package PACKAGE → Add a package. This option can be used multiple times

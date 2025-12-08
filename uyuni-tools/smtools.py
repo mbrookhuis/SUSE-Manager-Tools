@@ -1747,11 +1747,11 @@ class SMTools:
 
     def errata_getdetails(self, errata, fatal_error=True):
         try:
-            return self.client.errata.addPackages(self.session, errata)
+            return self.client.errata.getDetails(self.session, errata)
         except xmlrpc.client.Fault as err:
             message = f'Unable to find details for {errata}. The error is: \n{err}'
             if fatal_error:
-                self.log_debug('api-call: errata.details')
+                self.log_debug('api-call: errata.getDetails')
                 self.log_debug('Value passed: ')
                 self.log_debug(f'  advisory_name:      {errata}')
                 self.log_debug(f"Error: \n{err}")

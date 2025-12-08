@@ -462,7 +462,7 @@ def main():
         parser.add_argument("-u", "--updatescript", action="store_true", default=0,
                             help="Execute the server specific _start and _end scripts")
         parser.add_argument("-p", "--post_script", help="Execute given script on the SUSE Manger Server when system_update has finished")
-        parser.add_argument('--version', action='version', version='%(prog)s 2.0.1, December 2, 2025')
+        parser.add_argument('--version', action='version', version='%(prog)s 2.0.2, December 8, 2025')
         args = parser.parse_args()
         if not args.server:
             smt = smtools.SMTools("system_update")

@@ -5,7 +5,7 @@ The solution is based on running a service that will listen to a given port and 
 The database is created, when not present, on starting the service.
 
 To configure this service, perform the following steps:
-- install the following packages: sqlite3, python3-Flask, python3-PyYAML
+- install the following packages: python3-Flask, python3-PyYAML
 - make the scripts /opt/uyuni-tools/database/smtdb.py executable.
 - copy the file /opt/uyuni-tools/database/smtdb.service to /etc/systemd/system. And enable the service with: systemctl enable --now smtdb.service
 
@@ -17,6 +17,9 @@ monitoring:
   monitoring_system_update: True
   monitoring_system_highstate: False
 </pre>
+
+Note:<br>
+If 127.0.0.1 is used for hostname, only from the same host the monitoring service can be accessed. When using 0.0.0.0, the service can be accessed from any host. Alternative, the hostname can be set to the IP address or the FQDN of the host.
 
 To remove records or get the status of the monitored hosts, curl commands can be used.
 #### Get Status (GET to `/status`)

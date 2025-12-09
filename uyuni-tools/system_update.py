@@ -5,7 +5,7 @@
 # (c) 2018 SUSE Linux GmbH, Germany.
 # GNU Public License. No warranty. No Support
 #
-# Version: 2020-06-29
+# Version: 2025-12-09
 #
 # Created by: SUSE Michael Brookhuis
 #
@@ -21,7 +21,7 @@
 #                        - changed logging
 #                        - moved api calls to smtools.py
 # 2022-05-05 M.Brookhuis - added request for disabling dry-run in SPMIG.
-# 2025-11-29 M.Brookhuis - added monitoring
+# 2025-12-09 M.Brookhuis - Added monitoring|monitoring_system_update option.
 #
 
 """

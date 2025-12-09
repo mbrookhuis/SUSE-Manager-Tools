@@ -18,6 +18,7 @@
 # 2020-03-21 M.Brookhuis - RC 1 if there has been an error
 # 2020-11-09 M.Brookhuis - Added maintenance|wait_between_events_check option. This should also be added to configsm.yaml.
 # 2021-01-05 M.Brookhuis - Optimized events checking
+# 2025-12-09 M.Brookhuis - Added monitoring|monitoring_system_update option.
 #
 # coding: utf-8
 
@@ -136,7 +137,7 @@ class SMTools:
         self.error_found = True
         self.log_error("{}".format(errtxt))
         try:
-            system_update_monitoring = CONFIGSM['monitoring']['system_update']
+            system_update_monitoring = CONFIGSM['monitoring']['monitoring_system_update']
             if self.program == "system_update" and system_update_monitoring:
                 self.report_status(self.hostname, "error", "system_update", errtxt)
         except KeyError:
@@ -352,11 +353,12 @@ class SMTools:
     def report_status(self, hostname, status, service, comment=""):
         """Sends a POST request to update or insert a host's status."""
         BASE_URL = f"http://{CONFIGSM['monitoring']['hostname']}:{CONFIGSM['monitoring']['port']}/"
+        first, *others = comment.splitlines()
         payload = {
             "hostname": hostname,
             "status": status,
             "service": service,
-            "comment": comment
+            "comment": first
         }
         try:
             response = requests.post(f"{BASE_URL}/record", json=payload)

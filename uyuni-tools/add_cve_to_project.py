@@ -16,6 +16,7 @@
 # Releases:
 # 2025-11-17 M.Brookhuis - initial release.
 # 2025-11-19 M.Brookhuis - added the options to also add packages and patches to the project
+# 2025-12-09 M.Brookhuis - some more changes
 #
 
 import argparse

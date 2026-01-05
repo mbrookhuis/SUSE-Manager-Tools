@@ -4,14 +4,14 @@
 # GNU Public License. No warranty. No Support
 # For question/suggestions/bugs mail: michael.brookhuis@suse.com
 #
-# Version: 2025-11-14
+# Version: 2026-01-05
 #
 # Created by: SUSE Michael Brookhuis
 #
 # This script will import data from a file to mlm.
 #
 # Releases:
-# 2025-11-14 M.Brookhuis - initial release.
+# 2026-01-05 M.Brookhuis - initial release.
 #
 
 import argparse
@@ -89,8 +89,7 @@ def get_repos(content):
                 if key == "Repository Label":
                     if current_repo:
                         parsed_repos.append(current_repo)
-                    current_repo = {}
-                    current_repo[key_map[key]] = value
+                    current_repo = {key_map[key]: value}
                 elif key in key_map and current_repo:
                     current_repo[key_map[key]] = value
     if current_repo:
@@ -179,10 +178,7 @@ def get_users(content):
                 if key == "Username":
                     if current_user:
                         parsed_users.append(current_user)
-                    current_user = {}
-                    current_user['roles'] = []
-                    current_user['groups'] = []
-                    current_user[key_map[key]] = value
+                    current_user = {'roles': [], 'groups': [], key_map[key]: value}
                 elif key in key_map and current_user:
                     current_user[key_map[key]] = value
         elif state == 'ROLES_LIST':
@@ -273,7 +269,7 @@ def parse_arguments(args):
         description="This script will import data from a file to mlm. Valid options are user, repo, group."
     )
 
-    parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, November 14, 2025')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.0.0, January 5, 2026')
 
     # 1. Add the required inputfile argument
     parser.add_argument(

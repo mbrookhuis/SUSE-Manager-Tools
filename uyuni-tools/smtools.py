@@ -515,7 +515,7 @@ class SMTools:
         """
         self.log_info("Performing {}".format(action))
         try:
-            schedule_id = self.client.system.scheduleApplyErrata(self.session, self.systemid, patches, date)[0]
+            schedule_id = self.client.system.scheduleApplyErrata(self.session, self.systemid, patches, date, True)[0]
         except xmlrpc.client.Fault as err:
             self.log_debug('api-call: system.scheduleApplyErrata')
             self.log_debug('Value passed: ')
@@ -1837,6 +1837,27 @@ class SMTools:
                 return []
 
 
+    """
+    API call related to sync
+    """
+    def sync_hub_getallperipheralorgs(self):
+        """
+        Retrieve a list of packages associated with a given CVE (Common Vulnerabilities and Exposures)
+        identifier. This function interfaces with an external client, handling potential
+        errors in the process.
 
+        :param errata: The CVE identifier for which package information is requested.
+        :type errata: str
+        :return: A list of packages associated with the specified CVE.
+        :rtype: list
+        :raises xmlrpc.client.Fault: If the external client raises a fault during the API call.
+        """
+        try:
+            return self.client.sync.hub.getAllPeripheralOrgs(self.session)
+        except xmlrpc.client.Fault as err:
+            message = f'Unable to getAllPeripheralOrgs. The error is: \n{err}'
+            self.log_debug('api-call: sync.hub.getAllPeripheralOrgs')
+            self.log_debug(f"Error: \n{err}")
+            self.fatal_error(message)
 
 
